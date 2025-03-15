@@ -7,6 +7,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { OpenAI } from "openai";
+import { createProxyMiddleware } from 'http-proxy-middleware';
+import { log } from "./vite";
 
 // Setup file uploads
 const __filename = fileURLToPath(import.meta.url);
@@ -39,7 +41,29 @@ const client = new OpenAI({
   apiKey: process.env.FEATHERLESS_API_KEY || "rc_f8cf96bf43de3fde06f99a693f4d11e32d0c68a3bf3b7cdcaf851efec169d0b8",
 });
 
+// Python backend URL
+const PYTHON_BACKEND_URL = "http://localhost:8000";
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up proxy middleware for Python backend
+  app.use('/api-python', createProxyMiddleware({
+    target: PYTHON_BACKEND_URL,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api-python': '/api' // rewrite path
+    },
+    logLevel: 'debug',
+    onProxyReq: (proxyReq, req, res) => {
+      log(`Proxying request to Python backend: ${req.method} ${req.url}`, "proxy");
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      log(`Received response from Python backend: ${proxyRes.statusCode} for ${req.method} ${req.url}`, "proxy");
+    },
+    onError: (err, req, res) => {
+      log(`Proxy error: ${err.message}`, "proxy");
+      res.status(500).json({ error: "Proxy error", message: err.message });
+    }
+  }));
   // API Routes
   
   // Get all RFQs

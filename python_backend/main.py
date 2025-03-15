@@ -4,7 +4,7 @@ Main entry point for the RFQ processing platform.
 
 import os
 import uvicorn
-from .api.app import create_app
+from python_backend.api.app import create_app
 
 # Create FastAPI application
 app = create_app()
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     
     # Run the server
     uvicorn.run(
-        "main:app",
+        "python_backend.main:app",
         host="0.0.0.0",  # Bind to all interfaces
         port=port,
         reload=True,  # Enable auto-reload for development
