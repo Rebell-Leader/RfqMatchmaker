@@ -4,30 +4,36 @@ from .routes import router
 
 def create_app():
     """Create and configure the FastAPI application"""
+    # Create FastAPI app
     app = FastAPI(
-        title="RFQ Supplier Matching API",
-        description="API for matching suppliers to RFQs using AI",
+        title="RFQ Processor API",
+        description="API for processing RFQs, matching suppliers, and generating proposals",
         version="1.0.0"
     )
     
-    # Configure CORS
+    # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # In production, restrict this to specific domains
+        allow_origins=["*"],  # For development; restrict in production
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
     
-    # Include routers
+    # Include API routes
     app.include_router(router, prefix="/api")
     
+    # Root endpoint
     @app.get("/")
     async def root():
-        return {"message": "Welcome to the RFQ Supplier Matching API"}
+        return {
+            "message": "Welcome to the RFQ Processor API", 
+            "docs_url": "/docs"
+        }
     
+    # Health check endpoint
     @app.get("/health")
     async def health_check():
-        return {"status": "healthy"}
+        return {"status": "ok"}
     
     return app
