@@ -21,14 +21,20 @@ export async function extractRequirementsFromRFQ(fileContent: string): Promise<E
 
 export async function uploadRFQFile(file: File): Promise<number> {
   try {
+    console.log("Uploading file to Python backend...");
     const formData = new FormData();
     formData.append("file", file);
+    
+    // For debugging
+    console.log("File being uploaded:", file.name, file.type, file.size);
     
     const response = await fetch(`${PYTHON_API_PREFIX}/rfqs/upload`, {
       method: "POST",
       body: formData,
       credentials: "include",
     });
+    
+    console.log("Upload response status:", response.status);
     
     if (!response.ok) {
       throw new Error(`Failed to upload RFQ: ${response.statusText}`);
