@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { RfqProvider, useRfq } from "./context/rfq-context";
 import Layout from "./components/layout";
 import NotFound from "@/pages/not-found";
+import Landing from "@/pages/landing";
 import UploadRfq from "@/pages/upload-rfq";
 import ReviewRequirements from "@/pages/review-requirements";
 import MatchSuppliers from "@/pages/match-suppliers";
@@ -48,10 +49,23 @@ function RouterContent() {
     setCurrentStep(urlStep);
   }
   
+  // Only show the header and stepper for the RFQ workflow pages
+  const isLandingPage = location === "/";
+  
+  if (isLandingPage) {
+    return (
+      <>
+        <Switch>
+          <Route path="/" component={Landing} />
+          <Route component={NotFound} />
+        </Switch>
+      </>
+    );
+  }
+  
   return (
     <Layout currentStep={currentStep}>
       <Switch>
-        <Route path="/" component={UploadRfq} />
         <Route path="/upload" component={UploadRfq} />
         <Route path="/review/:id" component={ReviewRequirements} />
         <Route path="/match/:id" component={MatchSuppliers} />
