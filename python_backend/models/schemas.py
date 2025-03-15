@@ -1,7 +1,6 @@
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
-
 
 class LaptopRequirements(BaseModel):
     quantity: int
@@ -15,7 +14,6 @@ class LaptopRequirements(BaseModel):
     connectivity: str
     warranty: str
 
-
 class MonitorRequirements(BaseModel):
     quantity: int
     screenSize: str
@@ -27,12 +25,10 @@ class MonitorRequirements(BaseModel):
     adjustability: str
     warranty: str
 
-
 class AwardCriteria(BaseModel):
     price: Dict[str, int] = Field(default={"weight": 50})
     quality: Dict[str, int] = Field(default={"weight": 30})
     delivery: Dict[str, int] = Field(default={"weight": 20})
-
 
 class ExtractedRequirement(BaseModel):
     title: str
@@ -42,14 +38,12 @@ class ExtractedRequirement(BaseModel):
     monitors: Optional[MonitorRequirements] = None
     criteria: AwardCriteria
 
-
 class User(BaseModel):
     id: int
     username: str
     email: str
     fullName: Optional[str] = None
     company: Optional[str] = None
-
 
 class RFQ(BaseModel):
     id: int
@@ -59,7 +53,6 @@ class RFQ(BaseModel):
     extractedRequirements: ExtractedRequirement
     userId: int
     createdAt: datetime = Field(default_factory=datetime.now)
-
 
 class Supplier(BaseModel):
     id: int
@@ -72,7 +65,6 @@ class Supplier(BaseModel):
     contactPhone: str
     deliveryTime: str  # e.g., "15-30 days"
 
-
 class Product(BaseModel):
     id: int
     supplierId: int
@@ -83,12 +75,10 @@ class Product(BaseModel):
     specifications: Dict[str, Any]
     warranty: str
 
-
 class MatchDetails(BaseModel):
     price: float
     quality: float
     delivery: float
-
 
 class SupplierMatch(BaseModel):
     supplier: Supplier
@@ -96,7 +86,6 @@ class SupplierMatch(BaseModel):
     matchScore: float
     matchDetails: MatchDetails
     totalPrice: float
-
 
 class Proposal(BaseModel):
     id: int
@@ -109,28 +98,23 @@ class Proposal(BaseModel):
     emailContent: Optional[str] = None
     createdAt: datetime = Field(default_factory=datetime.now)
 
-
 class EmailTemplate(BaseModel):
     to: str
     cc: Optional[str] = None
     subject: str
     body: str
 
-
-# Request and Response models
+# Request/Response models
 class RFQUploadRequest(BaseModel):
     title: str
     description: Optional[str] = None
     specifications: str
 
-
 class MatchSuppliersRequest(BaseModel):
     rfqId: int
 
-
 class GenerateEmailRequest(BaseModel):
     proposalId: int
-
 
 class RFQResponse(BaseModel):
     id: int
@@ -138,7 +122,6 @@ class RFQResponse(BaseModel):
     description: str
     extractedRequirements: ExtractedRequirement
     createdAt: datetime
-
 
 class SupplierMatchResponse(BaseModel):
     rfqId: int

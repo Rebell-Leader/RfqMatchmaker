@@ -1,0 +1,79 @@
+RFQ Details
+
+Title: Supply and Delivery of Laptops and Monitors for High School Computer Lab
+
+Issuing Organization: Springfield High School
+Procurement Reference: SHS-IT-2023-01
+Issue Date: January 15, 2023
+Submission Deadline: February 15, 2023
+
+Contact Information:
+John Smith, IT Procurement Manager
+Email: john.smith@springfield.edu
+Phone: (555) 123-4567
+
+1. Project Overview:
+Springfield High School is seeking qualified vendors to supply and deliver laptops and monitors for our new computer laboratory. The equipment will be used by students for programming classes, digital media production, and general educational purposes.
+
+2. Scope of Supply:
+- 30 Laptops with specifications detailed below
+- 30 Monitors with specifications detailed below
+- All necessary accessories and peripherals
+- Delivery to Springfield High School IT Department
+- Installation and setup services
+- Warranty and support services
+
+3. Technical Specifications:
+
+3.1 Laptop Requirements:
+- Quantity: 30 units
+- Operating System: Windows 11 Pro or Education
+- Processor: Intel Core i5 11th gen or equivalent
+- Memory: 16GB DDR4
+- Storage: 512GB SSD
+- Display: 14-inch FHD (1920 x 1080)
+- Battery: 8+ hours battery life
+- Durability: MIL-STD-810H tested or equivalent
+- Connectivity: Wi-Fi 6, Bluetooth 5.0
+- Warranty: 3 years onsite
+
+3.2 Monitor Requirements:
+- Quantity: 30 units
+- Screen Size: 27 inches
+- Resolution: 2K QHD (2560 x 1440)
+- Panel Technology: IPS
+- Brightness: 300 cd/m² or higher
+- Contrast Ratio: 1000:1 or higher
+- Connectivity: HDMI, DisplayPort, USB-C
+- Adjustability: Height, tilt, swivel adjustable
+- Warranty: 3 years standard
+
+4. Evaluation Criteria:
+Proposals will be evaluated based on the following criteria:
+- Price: 50%
+- Quality and specifications compliance: 30%
+- Delivery timeline: 20%
+
+5. Delivery Requirements:
+- Delivery Location: Springfield High School, 123 Education Street, Springfield
+- Delivery Timeline: Within 45 days of purchase order
+- Packaging must be adequate to protect equipment during transit
+
+6. Payment Terms:
+- 50% upon purchase order issuance
+- 50% upon successful delivery and inspection
+
+7. Submission Requirements:
+Interested vendors must submit:
+- Detailed price quotation
+- Technical specifications of offered products
+- Delivery timeline
+- Company profile and references
+- Warranty and support details
+
+8. Additional Information:
+- Questions regarding this RFQ must be submitted in writing to john.smith@springfield.edu
+- Site visit can be arranged by appointment
+- The school reserves the right to award the contract to the vendor that represents the best value, not necessarily the lowest price
+
+We look forward to your proposal.
