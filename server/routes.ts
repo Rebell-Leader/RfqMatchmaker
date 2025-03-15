@@ -36,9 +36,10 @@ const upload = multer({
 });
 
 // Initialize Featherless AI client
+const API_KEY = process.env.FEATHERLESS_API_KEY || "rc_f8cf96bf43de3fde06f99a693f4d11e32d0c68a3bf3b7cdcaf851efec169d0b8";
 const client = new OpenAI({
   baseUrl: "https://api.featherless.ai/v1",
-  apiKey: process.env.FEATHERLESS_API_KEY || "rc_f8cf96bf43de3fde06f99a693f4d11e32d0c68a3bf3b7cdcaf851efec169d0b8",
+  apiKey: API_KEY,
 });
 
 // Python backend URL
@@ -101,24 +102,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const filePath = req.file.path;
-      const fileContent = fs.readFileSync(filePath, "utf8");
+      const fileName = req.file.originalname.toLowerCase();
+      let fileContent = "";
       
-      // Extract requirements using Featherless AI
-      const extractedRequirements = await extractRequirementsFromRFQ(fileContent);
-      
-      // Create RFQ in storage
-      const newRfq = await storage.createRfq({
-        title: extractedRequirements.title || "Untitled RFQ",
-        description: extractedRequirements.description || "",
-        originalContent: fileContent,
-        extractedRequirements,
-        userId: 1, // Default user for now
-      });
-      
-      // Clean up the uploaded file
-      fs.unlinkSync(filePath);
-      
-      res.status(201).json(newRfq);
+      // Handle based on file extension
+      if (fileName.endsWith('.pdf')) {
+        // For PDF files, we'll forward to Python backend for processing
+        log("PDF detected, forwarding to Python backend", "express");
+        
+        // We'll forward the file to the Python backend
+        // We're not trying to read it here since that requires PyPDF2
+        
+        // Create a readable stream from the file
+        const fileStream = fs.createReadStream(filePath);
+        
+        // Create a form-data object
+        const formData = new FormData();
+        formData.append("file", fileStream, req.file.originalname);
+        
+        // Forward to Python backend
+        const pythonResponse = await fetch(`${PYTHON_BACKEND_URL}/api/rfqs/upload`, {
+          method: "POST",
+          body: formData
+        });
+        
+        if (!pythonResponse.ok) {
+          throw new Error(`Python backend returned: ${pythonResponse.status} ${pythonResponse.statusText}`);
+        }
+        
+        const responseData = await pythonResponse.json();
+        
+        // Clean up the uploaded file
+        fs.unlinkSync(filePath);
+        
+        return res.status(201).json(responseData);
+      } else {
+        // For text files, process directly
+        fileContent = fs.readFileSync(filePath, "utf8");
+        
+        // Extract requirements using Featherless AI
+        const extractedRequirements = await extractRequirementsFromRFQ(fileContent);
+        
+        // Create RFQ in storage
+        const newRfq = await storage.createRfq({
+          title: extractedRequirements.title || "Untitled RFQ",
+          description: extractedRequirements.description || "",
+          originalContent: fileContent,
+          extractedRequirements,
+          userId: 1, // Default user for now
+        });
+        
+        // Clean up the uploaded file
+        fs.unlinkSync(filePath);
+        
+        res.status(201).json(newRfq);
+      }
     } catch (error) {
       console.error("Error processing RFQ upload:", error);
       res.status(500).json({ error: "Failed to process uploaded RFQ" });

@@ -6,15 +6,19 @@ and generating personalized email proposals based on matched suppliers.
 """
 
 import json
+import os
 from typing import Dict, Any, Optional
 from openai import OpenAI
 
 from ..models.schemas import ExtractedRequirement, EmailTemplate
 
+# Get API key from environment variable, fall back to a default for development only
+API_KEY = os.environ.get("FEATHERLESS_API_KEY", "rc_f8cf96bf43de3fde06f99a693f4d11e32d0c68a3bf3b7cdcaf851efec169d0b8")
+
 # Initialize Featherless AI client
 client = OpenAI(
     base_url="https://api.featherless.ai/v1",
-    api_key="rc_f8cf96bf43de3fde06f99a693f4d11e32d0c68a3bf3b7cdcaf851efec169d0b8",
+    api_key=API_KEY,
 )
 
 async def extract_requirements_from_rfq(content: str) -> ExtractedRequirement:
