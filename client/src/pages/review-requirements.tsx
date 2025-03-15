@@ -12,7 +12,7 @@ export default function ReviewRequirements() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { setRfqId, setExtractedRequirements } = useRfq();
+  const { setRfqId, setExtractedRequirements, setCurrentStep } = useRfq();
   const [loading, setLoading] = useState(true);
   const [rfq, setRfq] = useState<any>(null);
   const [requirements, setRequirements] = useState<any>(null);
@@ -28,6 +28,7 @@ export default function ReviewRequirements() {
         // Update context
         setRfqId(Number(id));
         setExtractedRequirements(rfqData.extractedRequirements);
+        setCurrentStep(2); // Ensure we're on step 2 (Review Requirements)
       } catch (error) {
         console.error("Error fetching RFQ:", error);
         toast({
@@ -43,13 +44,15 @@ export default function ReviewRequirements() {
     if (id) {
       fetchRfq();
     }
-  }, [id, setRfqId, setExtractedRequirements, toast]);
+  }, [id, setRfqId, setExtractedRequirements, setCurrentStep, toast]);
   
   const handleGoBack = () => {
+    setCurrentStep(1); // Go back to step 1 (Upload RFQ)
     navigate("/");
   };
   
   const handleFindSuppliers = () => {
+    setCurrentStep(3); // Move to step 3 (Match Suppliers)
     navigate(`/match/${id}`);
   };
   

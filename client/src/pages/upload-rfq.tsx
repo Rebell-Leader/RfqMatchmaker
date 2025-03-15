@@ -126,8 +126,9 @@ export default function UploadRfq() {
         values.specifications
       );
       
-      // Set RFQ ID in context
+      // Set RFQ ID and next step in context
       setRfqId(rfqId);
+      setCurrentStep(2); // Move to step 2 (Review Requirements)
       
       // Navigate to review page
       toast({
