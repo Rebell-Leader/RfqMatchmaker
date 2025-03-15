@@ -1,9 +1,12 @@
 import { apiRequest } from "./queryClient";
 import { SupplierMatch } from "@shared/schema";
 
+// Use Python backend API endpoints
+const PYTHON_API_PREFIX = "/api-python";
+
 export async function matchSuppliersForRFQ(rfqId: number): Promise<SupplierMatch[]> {
   try {
-    const response = await apiRequest("POST", `/api/rfqs/${rfqId}/match-suppliers`, {});
+    const response = await apiRequest("POST", `${PYTHON_API_PREFIX}/rfqs/${rfqId}/match-suppliers`, {});
     const data = await response.json();
     return data.matches;
   } catch (error) {
@@ -14,7 +17,7 @@ export async function matchSuppliersForRFQ(rfqId: number): Promise<SupplierMatch
 
 export async function getProductsByCategory(category: string): Promise<any[]> {
   try {
-    const response = await fetch(`/api/products?category=${encodeURIComponent(category)}`, {
+    const response = await fetch(`${PYTHON_API_PREFIX}/products?category=${encodeURIComponent(category)}`, {
       credentials: "include",
     });
     
@@ -31,7 +34,7 @@ export async function getProductsByCategory(category: string): Promise<any[]> {
 
 export async function getAllSuppliers(): Promise<any[]> {
   try {
-    const response = await fetch("/api/suppliers", {
+    const response = await fetch(`${PYTHON_API_PREFIX}/suppliers`, {
       credentials: "include",
     });
     
@@ -48,7 +51,7 @@ export async function getAllSuppliers(): Promise<any[]> {
 
 export async function getRFQById(id: number): Promise<any> {
   try {
-    const response = await fetch(`/api/rfqs/${id}`, {
+    const response = await fetch(`${PYTHON_API_PREFIX}/rfqs/${id}`, {
       credentials: "include",
     });
     

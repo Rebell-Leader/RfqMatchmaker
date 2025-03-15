@@ -1,9 +1,12 @@
 import { apiRequest } from "./queryClient";
 import { ExtractedRequirement, EmailTemplate } from "@shared/schema";
 
+// Use Python backend API endpoints
+const PYTHON_API_PREFIX = "/api-python";
+
 export async function extractRequirementsFromRFQ(fileContent: string): Promise<ExtractedRequirement> {
   try {
-    const response = await apiRequest("POST", "/api/rfqs", { 
+    const response = await apiRequest("POST", `${PYTHON_API_PREFIX}/rfqs`, { 
       title: "Extracted RFQ", 
       specifications: fileContent 
     });
@@ -21,7 +24,7 @@ export async function uploadRFQFile(file: File): Promise<number> {
     const formData = new FormData();
     formData.append("file", file);
     
-    const response = await fetch("/api/rfqs/upload", {
+    const response = await fetch(`${PYTHON_API_PREFIX}/rfqs/upload`, {
       method: "POST",
       body: formData,
       credentials: "include",
@@ -45,7 +48,7 @@ export async function createManualRFQ(
   specifications: string
 ): Promise<number> {
   try {
-    const response = await apiRequest("POST", "/api/rfqs", { 
+    const response = await apiRequest("POST", `${PYTHON_API_PREFIX}/rfqs`, { 
       title, 
       description, 
       specifications 
@@ -63,7 +66,7 @@ export async function generateEmailProposal(proposalId: number): Promise<EmailTe
   try {
     const response = await apiRequest(
       "POST", 
-      `/api/proposals/${proposalId}/generate-email`,
+      `${PYTHON_API_PREFIX}/proposals/${proposalId}/generate-email`,
       {}
     );
     

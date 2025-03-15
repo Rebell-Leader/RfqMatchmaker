@@ -12,6 +12,8 @@ interface RfqContextType {
   setSelectedMatches: (matches: SupplierMatch[]) => void;
   emailTemplate: EmailTemplate | null;
   setEmailTemplate: (template: EmailTemplate | null) => void;
+  currentStep: number;
+  setCurrentStep: (step: number) => void;
 }
 
 const RfqContext = createContext<RfqContextType | undefined>(undefined);

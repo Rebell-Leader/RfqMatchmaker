@@ -1,6 +1,36 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { spawn } from "child_process";
+import path from "path";
+
+// Start the Python backend
+const startPythonBackend = () => {
+  log("Starting Python backend server...", "python");
+  
+  const pythonProcess = spawn("python", ["-m", "python_backend.main"], {
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  
+  pythonProcess.stdout.on("data", (data) => {
+    log(`[Python] ${data.toString().trim()}`, "python");
+  });
+  
+  pythonProcess.stderr.on("data", (data) => {
+    log(`[Python Error] ${data.toString().trim()}`, "python");
+  });
+  
+  pythonProcess.on("close", (code) => {
+    log(`Python backend process exited with code ${code}`, "python");
+    if (code !== 0) {
+      // Restart the Python backend after a delay if it crashes
+      setTimeout(startPythonBackend, 5000);
+    }
+  });
+};
+
+// Start the Python backend
+startPythonBackend();
 
 const app = express();
 app.use(express.json());
