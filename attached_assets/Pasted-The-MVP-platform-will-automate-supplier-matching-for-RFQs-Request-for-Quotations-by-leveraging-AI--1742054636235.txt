@@ -1,0 +1,170 @@
+The MVP platform will automate supplier matching for RFQs (Request for Quotations) by leveraging AI and NLP capabilities to extract requirements from RFQs, find suitable suppliers, score them based on predefined criteria (e.g., price, quality), and allow users to send tailored emails with product orders.
+
+Key Features
+RFQ Processing:
+
+Accept RFQ documents (PDFs or text) uploaded by users.
+
+Extract requirements (e.g., product type, quantity, price criteria) using LLMs.
+
+Supplier Matching:
+
+Search public supplier databases or web sources for potential suppliers.
+
+Match suppliers based on product compatibility and RFQ criteria.
+
+Scoring System:
+
+Score suppliers using a weighted scoring system (e.g., price: 40%, quality: 30%, delivery time: 20%).
+
+Display ranked supplier lists to users.
+
+Email Proposal Generation:
+
+Generate email templates with extracted RFQ details (product type, quantity, price).
+
+Include supplier-specific information in emails.
+
+User Interface:
+
+Simple Gradio-based UI for RFQ uploads, supplier matches, scoring display, and email generation.
+
+Improved Workflow
+1. Input Stage
+User uploads an RFQ document or enters its details manually.
+
+The system extracts key requirements using LLMs.
+
+2. Supplier Matching
+Search for suppliers using public databases or web crawling (e.g., Google Search API).
+
+Match suppliers based on compatibility with extracted requirements.
+
+3. Scoring
+Evaluate suppliers with a weighted scoring system based on RFQ criteria:
+
+Price
+
+Product quality
+
+Delivery time
+
+Additional factors (e.g., sustainability).
+
+4. Output
+Display ranked supplier list with detailed scores.
+
+Allow users to select a supplier and generate an email proposal.
+
+Email includes product details, quantities, prices, and order terms.
+
+Technical Architecture
+Tech Stack
+Backend: Python + FastAPI
+
+AI/NLP: LangChain + Featherless LLM
+
+Database: PostgreSQL (structured data) + Qdrant (vector search)
+
+UI: Gradio
+
+Search Engine API: Tavily or Google Search API
+
+Parsing Tools: LLM-friendly parsers via LangChain
+
+Detailed Backlog
+Developer 1: Backend Developer (FastAPI & Database Integration)
+Set up FastAPI backend:
+
+Endpoint for RFQ upload (POST).
+
+Endpoint for retrieving matched suppliers (GET).
+
+Endpoint for generating email templates (POST).
+
+Design PostgreSQL database schema:
+
+Tables for RFQs, suppliers, scores, and email templates.
+
+Integrate Qdrant:
+
+Store supplier embeddings for semantic search.
+
+Implement API logic:
+
+Connect endpoints to AI/NLP modules and database.
+
+Developer 2: AI Developer (Data Extraction & Supplier Matching)
+Build data extraction pipeline:
+
+Use Featherless LLM via LangChain to parse RFQ documents into structured JSON format.
+
+Extract key fields like product type, quantity, price criteria.
+
+Develop supplier matching logic:
+
+Use Tavily/Google Search API to find relevant suppliers.
+
+Extract supplier details (name, products offered, contact info) via web crawling.
+
+Store supplier embeddings in Qdrant:
+
+Use vector similarity search for matching suppliers to RFQs.
+
+Developer 3: LLM Engineer (Scoring & Proposal Generation)
+Scoring System:
+
+Implement weighted scoring logic based on extracted RFQ criteria.
+
+Score suppliers using predefined weights (e.g., price: 40%, quality: 30%).
+
+Proposal Generation:
+
+Use Featherless LLM to generate personalized email templates.
+
+Include extracted RFQ details and supplier-specific information in the email body.
+
+Developer 4: UI Developer (Gradio Interface)
+Create Gradio UI:
+
+Upload section for users to drop RFQs or enter details manually.
+
+Display matched supplier list with scores in a table format.
+
+Add detailed views:
+
+Supplier profile page showing score breakdown and contact info.
+
+Email generation interface:
+
+Form to edit generated email templates before sending.
+
+Scoring System Design
+Criteria	Weight (%)	Description
+Price	40%	Lowest cost gets the highest score.
+Product Quality	30%	Based on certifications/reviews.
+Delivery Time	20%	Faster delivery gets higher scores.
+Additional Factors	10%	Sustainability or other metrics.
+UI Design
+Page 1: RFQ Upload
+File upload field for PDFs or text input box for manual entry.
+
+Button to submit the RFQ for processing.
+
+Page 2: Supplier Matches
+Table displaying matched suppliers with the following columns:
+
+Supplier Name
+
+Matched Products
+
+Score Breakdown (Price/Quality/Delivery)
+
+Button to view detailed profile of each supplier.
+
+Page 3: Email Proposal Generator
+Pre-filled email template with extracted RFQ details and supplier-specific data.
+
+Editable fields for customization before sending.
+
+Timeline

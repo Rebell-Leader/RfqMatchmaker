@@ -1,0 +1,122 @@
+RFQ for High School Computer Class Equipment
+RFQ Details
+Title: Supply and Delivery of Laptops and Monitors for High School Computer Classes
+Purpose: Equip newly-built computer classrooms with laptops and monitors to support digital learning.
+
+RFQ Specifications
+Laptops:
+
+Quantity: 30 units.
+
+Operating System: Windows 11 Pro for Education.
+
+Processor: Minimum Intel® Core™ i5 (12th Gen or newer) or AMD Ryzen™ equivalent.
+
+Memory: Minimum 16 GB LPDDR5 RAM.
+
+Storage: Minimum 256 GB SSD (PCIe NVMe).
+
+Display: FHD (1920 x 1080), IPS, non-touch, minimum brightness of 250 nits.
+
+Battery Life: Minimum of 8 hours.
+
+Durability: MIL-STD 810G certification or equivalent for rugged use in classrooms.
+
+Connectivity: Wi-Fi 6, Bluetooth, HDMI port, USB Type-C.
+
+Warranty: Minimum 2 years onsite warranty.
+
+Monitors:
+
+Quantity: 30 units.
+
+Screen Size: Minimum 23.8 inches diagonal.
+
+Resolution: FHD (1920 x 1080) or higher.
+
+Panel Technology: IPS or VA with anti-glare coating.
+
+Brightness: Minimum 250 nits.
+
+Contrast Ratio: Minimum 1000:1 (static).
+
+Connectivity: HDMI and DisplayPort support.
+
+Adjustability: Tilt and height adjustment required.
+
+Warranty: Minimum 2 years onsite warranty.
+
+Award Criteria:
+Price: Weighted at 50%.
+
+Quality: Weighted at 30% (durability, technical specs).
+
+Delivery Time: Weighted at 20% (must deliver within 30 days of contract award).
+
+Matching Tech Spec Sheets for RFQ
+Laptops:
+Dell Latitude 5350 ([Source]):
+
+Processor: Intel® Core™ Ultra i5-125U (12 cores, up to 4.3 GHz Turbo).
+
+Memory: 16 GB LPDDR5x RAM.
+
+Storage: 256 GB PCIe Gen4 NVMe SSD.
+
+Display: FHD (1920x1080), IPS, non-touch, brightness: 250 nits.
+
+Warranty: Basic onsite service for hardware support (12 months).
+
+HP Fortis Laptop ([Source]):
+
+Processor: Latest Gen Intel® Core™ processors.
+
+Memory: Up to 64 GB LPDDR5 RAM.
+
+Durability: MIL-STD testing for rugged use in classrooms.
+
+Connectivity: Wi-Fi 6E.
+
+Lenovo Yoga Gen4 ([Source]):
+
+Processor: Intel® N-series processors with Wi-Fi 6 capability.
+
+Display: FHD IPS touch screen with a durable hinge for flexibility.
+
+Monitors:
+Dell E2318H Monitor ([Source]):
+
+Screen Size: 23 inches diagonal.
+
+Resolution: FHD (1920x1080).
+
+Brightness: Typical brightness of 250 cd/m².
+
+Connectivity: VGA and DisplayPort.
+
+HP P24v G5 Monitor ([Source]):
+
+Screen Size: 23.8 inches diagonal.
+
+Resolution: FHD (1920x1080).
+
+Brightness: Typical brightness of 250 nits.
+
+Adjustability: Tilt option included.
+
+Lenovo ThinkVision T24m-20 Monitor ([Source]):
+
+Screen Size: 23.8 inches diagonal with IPS technology.
+
+Resolution: FHD (1920x1080).
+
+Brightness: Typical brightness of 250 cd/m².
+
+How This Data Matches the RFQ
+The laptops and monitors listed meet or exceed the technical specifications outlined in the RFQ:
+
+All laptops feature modern processors, sufficient RAM/storage, and rugged designs suitable for classroom use.
+
+Monitors provide high-resolution displays with adequate brightness and connectivity options.
+
+This data can be used to populate the supplier database in the platform prototype for testing purposes.
