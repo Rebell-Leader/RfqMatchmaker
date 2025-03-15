@@ -1,128 +1,164 @@
 import streamlit as st
 import requests
 import json
-import base64
+import os
+import time
+from datetime import datetime
 
-# Set page config
-st.set_page_config(
-    page_title="RFQ Supplier Matching",
-    page_icon="📋",
-    layout="wide"
-)
-
-# Define API URL
+# Constants
 API_URL = "http://localhost:8000/api"
 
-# Create session state variables if they don't exist
-if "rfq_id" not in st.session_state:
-    st.session_state.rfq_id = None
+# Set page configuration
+st.set_page_config(
+    page_title="RFQ Processor",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-if "step" not in st.session_state:
-    st.session_state.step = 1
+# Custom styling
+st.markdown("""
+<style>
+    .main-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1E88E5;
+        margin-bottom: 1rem;
+    }
+    .subtitle {
+        font-size: 1.5rem;
+        font-weight: 500;
+        color: #424242;
+        margin-bottom: 2rem;
+    }
+    .card {
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background-color: #f8f9fa;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .step-number {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: white;
+        background-color: #1E88E5;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+    }
+    .step-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1E88E5;
+    }
+    .step-content {
+        margin-left: 40px;
+        margin-top: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
+# Title and introduction
+st.markdown('<div class="main-title">B2B RFQ Processing Platform</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Match supplier products with RFQ requirements and generate purchase proposals</div>', unsafe_allow_html=True)
 
 def reset_app():
     """Reset the app to initial state"""
+    # Clear session state
     st.session_state.rfq_id = None
-    st.session_state.step = 1
-
-
-# App header
-st.title("🚀 RFQ Supplier Matching Platform")
-
-st.markdown("""
-Welcome to the RFQ Supplier Matching Platform! This tool allows you to:
-
-1. Upload an RFQ document or enter details manually
-2. Review and confirm extracted requirements
-3. Match with suitable suppliers based on your criteria
-4. Review and compare supplier scores
-5. Generate and send email proposals to selected suppliers
-""")
-
-# Display the step progress
-steps = ["Upload RFQ", "Review Requirements", "Match Suppliers", "Review Scores", "Send Proposals"]
-
-col1, col2, col3, col4, col5 = st.columns(5)
-cols = [col1, col2, col3, col4, col5]
-
-for i, step in enumerate(steps, 1):
-    if i < st.session_state.step:
-        cols[i-1].markdown(f"#### ✅ **{i}. {step}**")
-    elif i == st.session_state.step:
-        cols[i-1].markdown(f"#### 🔄 **{i}. {step}**")
-    else:
-        cols[i-1].markdown(f"#### {i}. {step}")
-
-st.divider()
-
-# Main content
-if st.session_state.step == 1:
-    st.header("Upload Your RFQ")
+    st.session_state.requirements = None
+    st.session_state.supplier_matches = None
+    st.session_state.selected_matches = None
+    st.session_state.email_template = None
+    st.session_state.current_step = 1
     
-    upload_tab, manual_tab = st.tabs(["Upload Document", "Enter Manually"])
-    
-    with upload_tab:
-        uploaded_file = st.file_uploader("Upload RFQ document (TXT)", type=["txt"])
-        
-        if uploaded_file:
-            st.success("File uploaded successfully")
-            
-            if st.button("Process RFQ"):
-                with st.spinner("Extracting requirements..."):
-                    files = {"file": uploaded_file}
-                    response = requests.post(f"{API_URL}/rfqs/upload", files=files)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        st.session_state.rfq_id = data.get("id")
-                        st.session_state.step = 2
-                        st.rerun()
-                    else:
-                        st.error(f"Error: {response.text}")
-    
-    with manual_tab:
-        with st.form("manual_rfq_form"):
-            title = st.text_input("RFQ Title")
-            description = st.text_input("RFQ Description")
-            specifications = st.text_area("RFQ Specifications", height=300)
-            
-            submit_button = st.form_submit_button("Process RFQ")
-            
-            if submit_button:
-                if not title or not specifications:
-                    st.error("Please enter a title and specifications")
-                else:
-                    with st.spinner("Extracting requirements..."):
-                        payload = {
-                            "title": title,
-                            "description": description,
-                            "specifications": specifications
-                        }
-                        
-                        response = requests.post(f"{API_URL}/rfqs", json=payload)
-                        
-                        if response.status_code == 200:
-                            data = response.json()
-                            st.session_state.rfq_id = data.get("id")
-                            st.session_state.step = 2
-                            st.rerun()
-                        else:
-                            st.error(f"Error: {response.text}")
+    # Display success message
+    st.success("Application reset successfully. Start a new RFQ process.")
 
-elif st.session_state.step > 1 and not st.session_state.rfq_id:
-    st.warning("No RFQ selected. Please upload or create an RFQ first.")
-    if st.button("Start Over"):
+# Initialize session state
+if 'rfq_id' not in st.session_state:
+    st.session_state.rfq_id = None
+if 'requirements' not in st.session_state:
+    st.session_state.requirements = None
+if 'supplier_matches' not in st.session_state:
+    st.session_state.supplier_matches = None
+if 'selected_matches' not in st.session_state:
+    st.session_state.selected_matches = None
+if 'email_template' not in st.session_state:
+    st.session_state.email_template = None
+if 'current_step' not in st.session_state:
+    st.session_state.current_step = 1
+    
+# Main content layout
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("## Process Overview")
+    st.markdown("This platform automates the B2B RFQ processing workflow, helping procurement teams find the best suppliers for their requirements and generate professional purchase proposals.")
+    
+    st.markdown("### 5-Step Workflow")
+    
+    # Step 1
+    st.markdown('<span class="step-number">1</span><span class="step-title">Upload RFQ</span>', unsafe_allow_html=True)
+    st.markdown('<div class="step-content">Upload an RFQ document or enter requirements manually. Our AI will extract key specifications.</div>', unsafe_allow_html=True)
+    
+    # Step 2
+    st.markdown('<span class="step-number">2</span><span class="step-title">Review Requirements</span>', unsafe_allow_html=True)
+    st.markdown('<div class="step-content">Review and edit the extracted requirements to ensure accuracy before proceeding.</div>', unsafe_allow_html=True)
+    
+    # Step 3
+    st.markdown('<span class="step-number">3</span><span class="step-title">Match Suppliers</span>', unsafe_allow_html=True)
+    st.markdown('<div class="step-content">Our system matches supplier products with your requirements, finding the best options.</div>', unsafe_allow_html=True)
+    
+    # Step 4
+    st.markdown('<span class="step-number">4</span><span class="step-title">Score Results</span>', unsafe_allow_html=True)
+    st.markdown('<div class="step-content">Review supplier matches, scored based on price, quality, and delivery time factors.</div>', unsafe_allow_html=True)
+    
+    # Step 5
+    st.markdown('<span class="step-number">5</span><span class="step-title">Send Proposals</span>', unsafe_allow_html=True)
+    st.markdown('<div class="step-content">Generate customized purchase proposals and email templates for selected suppliers.</div>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col2:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("## Get Started")
+    
+    if st.button("Start New RFQ Process", use_container_width=True):
+        st.switch_page("pages/1_Upload_RFQ.py")
+    
+    if st.button("Reset Application", use_container_width=True):
         reset_app()
-        st.rerun()
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Status card
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("## Current Status")
+    
+    if st.session_state.rfq_id:
+        st.success(f"RFQ ID: {st.session_state.rfq_id}")
+        st.info(f"Current Step: {st.session_state.current_step}")
+        
+        if st.session_state.current_step > 1:
+            st.info("Requirements extracted ✓")
+        if st.session_state.current_step > 2:
+            st.info("Suppliers matched ✓")
+        if st.session_state.current_step > 3:
+            st.info("Matches scored ✓")
+        if st.session_state.current_step > 4:
+            st.success("Proposals generated ✓")
+    else:
+        st.info("No active RFQ process. Click 'Start New RFQ Process' to begin.")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # Footer
-st.divider()
-st.caption("RFQ Supplier Matching Platform - Powered by AI")
-    
-# Button to reset the app (for testing)
-with st.sidebar:
-    st.header("Navigation")
-    if st.button("Reset Application"):
-        reset_app()
-        st.rerun()
+st.markdown("---")
+st.markdown("© 2023 RFQ Processor | Developed for Hackathon")
