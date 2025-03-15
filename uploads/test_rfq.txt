@@ -1,0 +1,35 @@
+RFQ for High School Computer Class Equipment
+
+Title: Supply and Delivery of Laptops and Monitors for High School Computer Lab
+
+Description: The school district is seeking proposals from qualified suppliers for the provision of laptops and monitors for our high school computer lab renovation project. This acquisition aims to provide students with modern equipment that meets the requirements for computer science education and digital media creation.
+
+Product Requirements:
+
+Laptops (25 units):
+- Operating System: Windows 11 Pro Education
+- Processor: Intel Core i5 11th generation or equivalent
+- Memory: 16 GB DDR4
+- Storage: 512 GB SSD
+- Display: 15.6" Full HD (1920x1080)
+- Battery: Minimum 8 hours battery life
+- Durability: MIL-STD-810G certification preferred
+- Connectivity: Wi-Fi 6, Bluetooth 5.0, USB-C, HDMI, USB 3.0 ports
+- Warranty: 3-year warranty required
+
+Monitors (25 units):
+- Screen Size: 24-inch minimum
+- Resolution: 1920x1080 (Full HD) minimum
+- Panel Technology: IPS or equivalent with wide viewing angles
+- Brightness: 250 cd/m² minimum
+- Contrast Ratio: 1000:1 minimum
+- Connectivity: HDMI, DisplayPort
+- Adjustability: Height, tilt adjustments required
+- Warranty: 3-year warranty required
+
+Award Criteria:
+- Price: 50% weight
+- Quality/Specifications: 30% weight
+- Delivery Time: 20% weight
+
+Delivery required within 30 days of purchase order.

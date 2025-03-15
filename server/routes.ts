@@ -49,9 +49,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api-python', createProxyMiddleware({
     target: PYTHON_BACKEND_URL,
     changeOrigin: true,
-    pathRewrite: {
-      '^/api-python': '/api' // rewrite path
-    },
+    // We're removing the pathRewrite to let the full path reach the Python backend
+    // This works because the client sends /api-python/rfqs/upload and we want this to go to /api/rfqs/upload
     logLevel: 'debug',
     onProxyReq: (proxyReq, req, res) => {
       log(`Proxying request to Python backend: ${req.method} ${req.url}`, "proxy");

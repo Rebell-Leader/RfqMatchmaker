@@ -2,7 +2,10 @@ import { apiRequest } from "./queryClient";
 import { ExtractedRequirement, EmailTemplate } from "@shared/schema";
 
 // Use Python backend API endpoints
-const PYTHON_API_PREFIX = "/api-python";
+// We need to use "/api-python/api" because:
+// 1. "/api-python" is the proxy path in Express
+// 2. "/api" is the prefix in the Python FastAPI app
+const PYTHON_API_PREFIX = "/api-python/api";
 
 export async function extractRequirementsFromRFQ(fileContent: string): Promise<ExtractedRequirement> {
   try {
