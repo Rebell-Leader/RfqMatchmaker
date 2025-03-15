@@ -1,30 +1,38 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query
+from fastapi.responses import JSONResponse
 from typing import List, Optional, Dict, Any
-import os
 import json
+import os
+from datetime import datetime
 
-from models.schemas import (
-    User, RFQ, Supplier, Product, Proposal, EmailTemplate,
-    RFQUploadRequest, MatchSuppliersRequest, GenerateEmailRequest,
-    RFQResponse, SupplierMatchResponse, ExtractedRequirement
+from ..models.schemas import (
+    RFQUploadRequest,
+    MatchSuppliersRequest,
+    GenerateEmailRequest,
+    RFQResponse,
+    SupplierMatchResponse,
+    ExtractedRequirement,
+    SupplierMatch,
+    EmailTemplate
 )
-from models.storage import MemStorage
-from services.ai_service import extract_requirements_from_rfq, generate_email_proposal
+from ..services.ai_service import extract_requirements_from_rfq, generate_email_proposal
+from ..models.storage import MemStorage
 
-# Initialize router
+# Create router
 router = APIRouter()
 
-# Initialize storage
+# Create in-memory storage instance
 storage = MemStorage()
 storage.initialize_sample_data()
 
-# RFQ routes
+# RFQ endpoints
 @router.get("/rfqs", response_model=List[RFQResponse])
 async def get_rfqs():
     """Get all RFQs"""
-    return await storage.get_all_rfqs()
+    rfqs = await storage.get_all_rfqs()
+    return rfqs
 
-@router.get("/rfqs/{rfq_id}", response_model=RFQResponse)
+@router.get("/rfqs/{rfq_id}", response_model=Dict[str, Any])
 async def get_rfq(rfq_id: int):
     """Get RFQ by ID"""
     rfq = await storage.get_rfq_by_id(rfq_id)
@@ -32,273 +40,327 @@ async def get_rfq(rfq_id: int):
         raise HTTPException(status_code=404, detail="RFQ not found")
     return rfq
 
-@router.post("/rfqs/upload", response_model=Dict[str, Any])
+@router.post("/rfqs/upload", status_code=201)
 async def upload_rfq(file: UploadFile = File(...)):
     """Upload RFQ document and extract requirements"""
-    # Create uploads directory if it doesn't exist
-    os.makedirs("uploads", exist_ok=True)
-    
-    # Save uploaded file
-    file_path = f"uploads/{file.filename}"
-    with open(file_path, "wb") as f:
+    try:
+        # Read file content
         content = await file.read()
-        f.write(content)
-    
-    # Read file content
-    with open(file_path, "r") as f:
-        content = f.read()
-    
-    # Extract requirements using AI service
-    requirements = await extract_requirements_from_rfq(content)
-    
-    # Create RFQ in storage
-    rfq_data = {
-        "title": requirements.title,
-        "description": requirements.description if requirements.description else "",
-        "originalContent": content,
-        "extractedRequirements": requirements.dict(),
-        "userId": 1  # Default user ID for MVP
-    }
-    
-    rfq = await storage.create_rfq(rfq_data)
-    
-    return {"id": rfq.id, "message": "RFQ processed successfully"}
+        content_text = content.decode("utf-8")
+        
+        # Save file to uploads directory for reference
+        os.makedirs("uploads", exist_ok=True)
+        file_path = f"uploads/{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        # Extract requirements using AI
+        requirements = await extract_requirements_from_rfq(content_text)
+        
+        # Create RFQ in storage
+        rfq_data = {
+            "title": requirements.title,
+            "description": requirements.description or "",
+            "originalContent": content_text,
+            "extractedRequirements": requirements.dict(),
+            "userId": 1  # Mock user ID for the MVP
+        }
+        
+        rfq = await storage.create_rfq(rfq_data)
+        
+        return {
+            "id": rfq.id,
+            "message": "RFQ uploaded and processed successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing RFQ: {str(e)}")
 
-@router.post("/rfqs", response_model=Dict[str, Any])
+@router.post("/rfqs", status_code=201)
 async def create_rfq(rfq_request: RFQUploadRequest):
     """Create RFQ manually with specifications"""
-    # Extract requirements using AI service
-    requirements = await extract_requirements_from_rfq(rfq_request.specifications)
-    
-    # Create RFQ in storage
-    rfq_data = {
-        "title": rfq_request.title,
-        "description": rfq_request.description if rfq_request.description else "",
-        "originalContent": rfq_request.specifications,
-        "extractedRequirements": requirements.dict(),
-        "userId": 1  # Default user ID for MVP
-    }
-    
-    rfq = await storage.create_rfq(rfq_data)
-    
-    return {"id": rfq.id, "message": "RFQ created successfully"}
+    try:
+        # Extract requirements using AI
+        requirements = await extract_requirements_from_rfq(rfq_request.specifications)
+        
+        # Override title and description if provided
+        requirements.title = rfq_request.title
+        if rfq_request.description:
+            requirements.description = rfq_request.description
+        
+        # Create RFQ in storage
+        rfq_data = {
+            "title": requirements.title,
+            "description": requirements.description or "",
+            "originalContent": rfq_request.specifications,
+            "extractedRequirements": requirements.dict(),
+            "userId": 1  # Mock user ID for the MVP
+        }
+        
+        rfq = await storage.create_rfq(rfq_data)
+        
+        return {
+            "id": rfq.id,
+            "message": "RFQ created successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating RFQ: {str(e)}")
 
-# Supplier routes
-@router.get("/suppliers", response_model=List[Supplier])
+# Supplier endpoints
+@router.get("/suppliers")
 async def get_suppliers():
     """Get all suppliers"""
-    return await storage.get_all_suppliers()
+    suppliers = await storage.get_all_suppliers()
+    return suppliers
 
-# Product routes
-@router.get("/products", response_model=List[Product])
+# Product endpoints
+@router.get("/products")
 async def get_products(category: Optional[str] = None):
     """Get products, optionally filtered by category"""
     if category:
-        return await storage.get_products_by_category(category)
+        products = await storage.get_products_by_category(category)
     else:
-        # Get all products from all suppliers
-        suppliers = await storage.get_all_suppliers()
+        # Get all products (this is a simplified approach for the MVP)
+        all_suppliers = await storage.get_all_suppliers()
         products = []
-        for supplier in suppliers:
+        for supplier in all_suppliers:
             supplier_products = await storage.get_products_by_supplier(supplier.id)
             products.extend(supplier_products)
-        return products
+    
+    return products
 
-# Matching routes
-@router.post("/rfqs/{rfq_id}/match-suppliers", response_model=SupplierMatchResponse)
+# Matching endpoints
+@router.post("/rfqs/{rfq_id}/match-suppliers", response_model=Dict[str, Any])
 async def match_suppliers(rfq_id: int):
     """Match suppliers based on RFQ requirements"""
+    # Get RFQ
     rfq = await storage.get_rfq_by_id(rfq_id)
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found")
     
-    # Get requirements
+    # Extract requirements
     requirements = rfq.extractedRequirements
     
-    # Get all products
-    suppliers = await storage.get_all_suppliers()
-    all_products = []
-    for supplier in suppliers:
-        supplier_products = await storage.get_products_by_supplier(supplier.id)
-        all_products.extend([(product, supplier) for product in supplier_products])
+    # Get relevant products based on categories
+    products = []
+    for category in requirements.get("categories", []):
+        category_products = await storage.get_products_by_category(category)
+        products.extend(category_products)
     
-    # Match products to requirements
+    # Match products with requirements
     matches = []
+    for product in products:
+        # Get supplier for this product
+        supplier = await storage.get_supplier_by_id(product.supplierId)
+        if not supplier:
+            continue
+        
+        # Calculate match score
+        match_score = calculate_match_score(product, supplier, requirements, product.category)
+        
+        # Create supplier match object
+        supplier_match = {
+            "supplier": supplier,
+            "product": product,
+            "matchScore": match_score["totalScore"],
+            "matchDetails": {
+                "price": match_score["priceScore"],
+                "quality": match_score["qualityScore"],
+                "delivery": match_score["deliveryScore"]
+            },
+            "totalPrice": product.price * get_quantity_for_category(requirements, product.category)
+        }
+        
+        matches.append(supplier_match)
     
-    for product, supplier in all_products:
-        for category in requirements.categories:
-            if product.category.lower() == category.lower():
-                # Calculate match score
-                match_score, match_details = calculate_match_score(product, supplier, requirements, category)
-                
-                # Calculate total price based on quantity
-                quantity = 0
-                if category.lower() == "laptops" and requirements.laptops:
-                    quantity = requirements.laptops.quantity
-                elif category.lower() == "monitors" and requirements.monitors:
-                    quantity = requirements.monitors.quantity
-                
-                total_price = product.price * quantity
-                
-                matches.append({
-                    "supplier": supplier,
-                    "product": product,
-                    "matchScore": match_score,
-                    "matchDetails": match_details,
-                    "totalPrice": total_price
-                })
-                
-                # Store proposal in database
-                proposal_data = {
-                    "rfqId": rfq_id,
-                    "productId": product.id,
-                    "score": match_score,
-                    "priceScore": match_details["price"],
-                    "qualityScore": match_details["quality"],
-                    "deliveryScore": match_details["delivery"]
-                }
-                
-                await storage.create_proposal(proposal_data)
+    # Sort matches by score (descending)
+    matches = sorted(matches, key=lambda x: x["matchScore"], reverse=True)
     
-    return {"rfqId": rfq_id, "matches": matches}
+    # Save proposals in storage (in a real app)
+    for match in matches:
+        proposal_data = {
+            "rfqId": rfq_id,
+            "productId": match["product"].id,
+            "score": match["matchScore"],
+            "priceScore": match["matchDetails"]["price"],
+            "qualityScore": match["matchDetails"]["quality"],
+            "deliveryScore": match["matchDetails"]["delivery"]
+        }
+        await storage.create_proposal(proposal_data)
+    
+    return {
+        "rfqId": rfq_id,
+        "matches": matches
+    }
 
-# Proposal routes
-@router.get("/rfqs/{rfq_id}/proposals", response_model=List[Proposal])
-async def get_proposals_by_rfq(rfq_id: int):
-    """Get all proposals for an RFQ"""
-    return await storage.get_proposals_by_rfq(rfq_id)
-
+# Email proposal endpoints
 @router.post("/proposals/{proposal_id}/generate-email", response_model=EmailTemplate)
 async def generate_proposal_email(proposal_id: int):
     """Generate email proposal for a specific supplier match"""
-    proposal = await storage.get_proposal_by_id(proposal_id)
-    if not proposal:
-        raise HTTPException(status_code=404, detail="Proposal not found")
+    # In a real app, get the proposal from storage
+    # For this MVP, we'll mock it since we don't have actual proposal IDs
     
-    rfq = await storage.get_rfq_by_id(proposal.rfqId)
-    if not rfq:
-        raise HTTPException(status_code=404, detail="RFQ not found")
+    # Extract product_id and supplier_id from the proposal_id (simplified approach)
+    supplier_id = int(str(proposal_id)[0])
+    product_id = int(str(proposal_id)[1:])
     
-    product = await storage.get_product_by_id(proposal.productId)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+    # Get supplier and product
+    supplier = await storage.get_supplier_by_id(supplier_id)
+    product = await storage.get_product_by_id(product_id)
     
-    supplier = await storage.get_supplier_by_id(product.supplierId)
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    if not supplier or not product:
+        raise HTTPException(status_code=404, detail="Supplier or product not found")
     
-    # Generate email using AI service
-    email_template = await generate_email_proposal(rfq.dict(), product.dict(), supplier.dict())
+    # Get the RFQ (simplified approach - just get the first RFQ)
+    rfqs = await storage.get_all_rfqs()
+    if not rfqs:
+        raise HTTPException(status_code=404, detail="No RFQs found")
     
-    # Update proposal with email content
-    proposal.emailContent = email_template.body
+    rfq = rfqs[0]
+    
+    # Generate email proposal
+    email_template = await generate_email_proposal(rfq, product, supplier)
+    
+    # Update proposal in storage (in a real app)
+    # await storage.update_proposal(proposal_id, {"emailContent": email_template.body})
     
     return email_template
 
-def calculate_match_score(product: Product, supplier: Supplier, requirements: ExtractedRequirement, category: str):
+# Proposal endpoints
+@router.get("/rfqs/{rfq_id}/proposals")
+async def get_proposals_by_rfq(rfq_id: int):
+    """Get all proposals for an RFQ"""
+    proposals = await storage.get_proposals_by_rfq(rfq_id)
+    return proposals
+
+# Utility functions
+def calculate_match_score(product: Any, supplier: Any, requirements: Dict[str, Any], category: str) -> Dict[str, float]:
     """Calculate match score between product and RFQ requirements"""
     # Get criteria weights
-    price_weight = requirements.criteria.price["weight"] / 100
-    quality_weight = requirements.criteria.quality["weight"] / 100
-    delivery_weight = requirements.criteria.delivery["weight"] / 100
+    criteria = requirements.get("criteria", {})
+    price_weight = criteria.get("price", {}).get("weight", 50) / 100
+    quality_weight = criteria.get("quality", {}).get("weight", 30) / 100
+    delivery_weight = criteria.get("delivery", {}).get("weight", 20) / 100
     
-    # Initialize scores
-    price_score = 0
+    # Calculate price score (lower price = higher score)
+    # For simplicity, we'll use a reference price
+    reference_price = 1500 if category == "Laptops" else 400  # Reference price for laptops/monitors
+    price_score = min(100, max(0, (reference_price / max(product.price, 1)) * 100))
+    
+    # Calculate quality score (this would be more sophisticated in a real app)
+    # Here we'll use a combination of specs matching and supplier verification
     quality_score = 0
-    delivery_score = 0
     
-    # Calculate price score (lower price is better)
-    # This is a simple calculation - in a real app, it would be more sophisticated
-    price_score = min(100, 100 * (1 - (product.price / 2000)))  # Assuming $2000 is max price
-    
-    # Calculate quality score based on specs match
-    if category.lower() == "laptops" and requirements.laptops:
-        laptop_reqs = requirements.laptops
+    if category == "Laptops" and requirements.get("laptops"):
+        laptop_reqs = requirements["laptops"]
         specs = product.specifications
         
-        # Count matching specs
-        matches = 0
-        total_specs = 8  # Total number of specs to check
+        # Match processor
+        if "processor" in specs and specs["processor"].lower() in laptop_reqs["processor"].lower():
+            quality_score += 20
         
-        if specs.get("os", "").lower() in laptop_reqs.os.lower():
-            matches += 1
-        if specs.get("processor", "").lower() in laptop_reqs.processor.lower():
-            matches += 1
-        if specs.get("memory", "").lower() in laptop_reqs.memory.lower():
-            matches += 1
-        if specs.get("storage", "").lower() in laptop_reqs.storage.lower():
-            matches += 1
-        if specs.get("display", "").lower() in laptop_reqs.display.lower():
-            matches += 1
-        if specs.get("battery", "").lower() in laptop_reqs.battery.lower():
-            matches += 1
-        if specs.get("connectivity", "").lower() in laptop_reqs.connectivity.lower():
-            matches += 1
-        if specs.get("warranty", "").lower() in laptop_reqs.warranty.lower():
-            matches += 1
+        # Match memory
+        if "memory" in specs and specs["memory"].lower() in laptop_reqs["memory"].lower():
+            quality_score += 15
         
-        quality_score = (matches / total_specs) * 100
+        # Match storage
+        if "storage" in specs and specs["storage"].lower() in laptop_reqs["storage"].lower():
+            quality_score += 15
+        
+        # Match OS
+        if "os" in specs and specs["os"].lower() in laptop_reqs["os"].lower():
+            quality_score += 10
+        
+        # Match display
+        if "display" in specs and specs["display"].lower() in laptop_reqs["display"].lower():
+            quality_score += 10
+        
+        # Match warranty
+        if product.warranty and product.warranty.lower() in laptop_reqs["warranty"].lower():
+            quality_score += 10
     
-    elif category.lower() == "monitors" and requirements.monitors:
-        monitor_reqs = requirements.monitors
+    elif category == "Monitors" and requirements.get("monitors"):
+        monitor_reqs = requirements["monitors"]
         specs = product.specifications
         
-        # Count matching specs
-        matches = 0
-        total_specs = 7  # Total number of specs to check
+        # Match screen size
+        if "screenSize" in specs and specs["screenSize"].lower() in monitor_reqs["screenSize"].lower():
+            quality_score += 25
         
-        if specs.get("screenSize", "").lower() in monitor_reqs.screenSize.lower():
-            matches += 1
-        if specs.get("resolution", "").lower() in monitor_reqs.resolution.lower():
-            matches += 1
-        if specs.get("panelTech", "").lower() in monitor_reqs.panelTech.lower():
-            matches += 1
-        if specs.get("brightness", "").lower() in monitor_reqs.brightness.lower():
-            matches += 1
-        if specs.get("contrastRatio", "").lower() in monitor_reqs.contrastRatio.lower():
-            matches += 1
-        if specs.get("connectivity", "").lower() in monitor_reqs.connectivity.lower():
-            matches += 1
-        if specs.get("warranty", "").lower() in monitor_reqs.warranty.lower():
-            matches += 1
+        # Match resolution
+        if "resolution" in specs and specs["resolution"].lower() in monitor_reqs["resolution"].lower():
+            quality_score += 25
         
-        quality_score = (matches / total_specs) * 100
+        # Match panel tech
+        if "panelTech" in specs and specs["panelTech"].lower() in monitor_reqs["panelTech"].lower():
+            quality_score += 20
+        
+        # Match warranty
+        if product.warranty and product.warranty.lower() in monitor_reqs["warranty"].lower():
+            quality_score += 10
     
-    else:
-        # Default quality score for other categories
-        quality_score = 70  # Arbitrary default
+    # Add supplier verification bonus
+    if getattr(supplier, "isVerified", False):
+        quality_score += 20
+    
+    # Cap quality score at 100
+    quality_score = min(100, quality_score)
     
     # Calculate delivery score
-    # Extract numeric value from delivery time (e.g., "15-30 days" -> 22.5)
-    delivery_text = supplier.deliveryTime
-    if "-" in delivery_text:
-        parts = delivery_text.split("-")
-        try:
-            min_days = int(parts[0].strip())
-            max_days = int(parts[1].split(" ")[0].strip())
-            avg_days = (min_days + max_days) / 2
-        except:
-            avg_days = 30  # Default
+    delivery_score = 0
+    
+    # Parse delivery time (e.g., "15-30 days" -> average of 22.5 days)
+    delivery_time = parse_delivery_time(supplier.deliveryTime)
+    
+    # Score based on delivery time (faster = higher score)
+    if delivery_time <= 7:
+        delivery_score = 100
+    elif delivery_time <= 14:
+        delivery_score = 90
+    elif delivery_time <= 21:
+        delivery_score = 80
+    elif delivery_time <= 30:
+        delivery_score = 70
+    elif delivery_time <= 45:
+        delivery_score = 50
     else:
-        try:
-            avg_days = int(delivery_text.split(" ")[0].strip())
-        except:
-            avg_days = 30  # Default
+        delivery_score = 30
     
-    # Lower days is better
-    delivery_score = max(0, 100 - (avg_days * 2))  # 0 days -> 100%, 50 days -> 0%
-    
-    # Calculate weighted score
-    match_score = (
+    # Calculate total score
+    total_score = (
         price_score * price_weight +
         quality_score * quality_weight +
         delivery_score * delivery_weight
     )
     
-    match_details = {
-        "price": price_score,
-        "quality": quality_score,
-        "delivery": delivery_score
+    return {
+        "totalScore": total_score,
+        "priceScore": price_score,
+        "qualityScore": quality_score,
+        "deliveryScore": delivery_score
     }
-    
-    return match_score, match_details
+
+def parse_delivery_time(delivery_time: str) -> float:
+    """Parse delivery time string to get average days"""
+    try:
+        # Handle formats like "15-30 days"
+        if "-" in delivery_time:
+            parts = delivery_time.split("-")
+            min_days = float(parts[0].strip())
+            max_days = float(parts[1].split(" ")[0].strip())
+            return (min_days + max_days) / 2
+        
+        # Handle formats like "15 days"
+        else:
+            return float(delivery_time.split(" ")[0].strip())
+    except:
+        # Default to 30 days if parsing fails
+        return 30.0
+
+def get_quantity_for_category(requirements: Dict[str, Any], category: str) -> int:
+    """Get quantity from requirements for a specific category"""
+    if category == "Laptops" and requirements.get("laptops"):
+        return requirements["laptops"]["quantity"]
+    elif category == "Monitors" and requirements.get("monitors"):
+        return requirements["monitors"]["quantity"]
+    else:
+        return 1  # Default quantity

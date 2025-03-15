@@ -1,7 +1,8 @@
-from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field
 from datetime import datetime
+from pydantic import BaseModel, Field
+from typing import List, Dict, Optional, Any, Union
 
+# Equipment requirements schemas
 class LaptopRequirements(BaseModel):
     quantity: int
     os: str
@@ -38,6 +39,7 @@ class ExtractedRequirement(BaseModel):
     monitors: Optional[MonitorRequirements] = None
     criteria: AwardCriteria
 
+# Database models
 class User(BaseModel):
     id: int
     username: str
@@ -64,6 +66,7 @@ class Supplier(BaseModel):
     contactEmail: str
     contactPhone: str
     deliveryTime: str  # e.g., "15-30 days"
+    isVerified: bool = False
 
 class Product(BaseModel):
     id: int
@@ -98,13 +101,13 @@ class Proposal(BaseModel):
     emailContent: Optional[str] = None
     createdAt: datetime = Field(default_factory=datetime.now)
 
+# API request/response schemas
 class EmailTemplate(BaseModel):
     to: str
     cc: Optional[str] = None
     subject: str
     body: str
 
-# Request/Response models
 class RFQUploadRequest(BaseModel):
     title: str
     description: Optional[str] = None

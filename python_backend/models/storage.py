@@ -1,16 +1,19 @@
-from typing import Dict, List, Optional, Any
+from typing import List, Dict, Optional, Any
 from datetime import datetime
-from .schemas import User, RFQ, Supplier, Product, Proposal, ExtractedRequirement, AwardCriteria
+import json
+
+from .schemas import User, RFQ, Supplier, Product, Proposal
 
 class MemStorage:
     def __init__(self):
         """Initialize in-memory storage with empty collections"""
-        self.users: Dict[int, User] = {}
-        self.rfqs: Dict[int, RFQ] = {}
-        self.suppliers: Dict[int, Supplier] = {}
-        self.products: Dict[int, Product] = {}
-        self.proposals: Dict[int, Proposal] = {}
+        self.users = {}
+        self.rfqs = {}
+        self.suppliers = {}
+        self.products = {}
+        self.proposals = {}
         
+        # Counters for generating IDs
         self.user_id_counter = 1
         self.rfq_id_counter = 1
         self.supplier_id_counter = 1
@@ -35,7 +38,6 @@ class MemStorage:
         
         user = User(id=id, **user_data)
         self.users[id] = user
-        
         return user
     
     async def create_rfq(self, rfq_data: dict) -> RFQ:
@@ -43,19 +45,8 @@ class MemStorage:
         id = self.rfq_id_counter
         self.rfq_id_counter += 1
         
-        # Create RFQ object
-        rfq = RFQ(
-            id=id,
-            title=rfq_data["title"],
-            description=rfq_data.get("description", ""),
-            originalContent=rfq_data["originalContent"],
-            extractedRequirements=rfq_data["extractedRequirements"],
-            userId=rfq_data.get("userId", 1),
-            createdAt=datetime.now()
-        )
-        
+        rfq = RFQ(id=id, **rfq_data)
         self.rfqs[id] = rfq
-        
         return rfq
     
     async def get_rfq_by_id(self, id: int) -> Optional[RFQ]:
@@ -71,11 +62,8 @@ class MemStorage:
         id = self.supplier_id_counter
         self.supplier_id_counter += 1
         
-        # Create Supplier object
         supplier = Supplier(id=id, **supplier_data)
-        
         self.suppliers[id] = supplier
-        
         return supplier
     
     async def get_supplier_by_id(self, id: int) -> Optional[Supplier]:
@@ -91,11 +79,8 @@ class MemStorage:
         id = self.product_id_counter
         self.product_id_counter += 1
         
-        # Create Product object
         product = Product(id=id, **product_data)
-        
         self.products[id] = product
-        
         return product
     
     async def get_product_by_id(self, id: int) -> Optional[Product]:
@@ -115,21 +100,8 @@ class MemStorage:
         id = self.proposal_id_counter
         self.proposal_id_counter += 1
         
-        # Create Proposal object
-        proposal = Proposal(
-            id=id,
-            rfqId=proposal_data["rfqId"],
-            productId=proposal_data["productId"],
-            score=proposal_data["score"],
-            priceScore=proposal_data["priceScore"],
-            qualityScore=proposal_data["qualityScore"],
-            deliveryScore=proposal_data["deliveryScore"],
-            emailContent=proposal_data.get("emailContent"),
-            createdAt=datetime.now()
-        )
-        
+        proposal = Proposal(id=id, **proposal_data)
         self.proposals[id] = proposal
-        
         return proposal
     
     async def get_proposal_by_id(self, id: int) -> Optional[Proposal]:
@@ -142,7 +114,7 @@ class MemStorage:
     
     def initialize_sample_data(self):
         """Initialize the storage with sample data for testing"""
-        # Create sample users
+        # Create test user
         self.create_user_sync({
             "username": "testuser",
             "email": "test@example.com",
@@ -150,27 +122,29 @@ class MemStorage:
             "company": "Test Company"
         })
         
-        # Create sample suppliers
+        # Create suppliers
         dell_supplier = self.create_supplier_sync({
             "name": "Dell Technologies",
             "logoUrl": "https://logo.clearbit.com/dell.com",
             "website": "https://www.dell.com",
-            "country": "United States",
-            "description": "Global computer technology company that develops, sells, repairs, and supports computers and related products and services.",
+            "country": "USA",
+            "description": "Dell is a multinational technology company that develops, sells, repairs, and supports computers and related products and services.",
             "contactEmail": "sales@dell.com",
-            "contactPhone": "+1-800-999-3355",
-            "deliveryTime": "15-30 days"
+            "contactPhone": "+1-800-624-9897",
+            "deliveryTime": "15-30 days",
+            "isVerified": True
         })
         
         hp_supplier = self.create_supplier_sync({
             "name": "HP Inc.",
             "logoUrl": "https://logo.clearbit.com/hp.com",
             "website": "https://www.hp.com",
-            "country": "United States",
-            "description": "American multinational information technology company that develops computers, printers, and related supplies.",
+            "country": "USA",
+            "description": "HP Inc. is an American multinational information technology company that develops personal computers, printers and related supplies.",
             "contactEmail": "sales@hp.com",
             "contactPhone": "+1-800-474-6836",
-            "deliveryTime": "10-20 days"
+            "deliveryTime": "10-20 days",
+            "isVerified": True
         })
         
         lenovo_supplier = self.create_supplier_sync({
@@ -178,125 +152,101 @@ class MemStorage:
             "logoUrl": "https://logo.clearbit.com/lenovo.com",
             "website": "https://www.lenovo.com",
             "country": "China",
-            "description": "Chinese multinational technology company that designs, develops, manufactures, and sells personal computers, tablets, smartphones, and more.",
+            "description": "Lenovo is a Chinese multinational technology company that designs, develops, manufactures and sells personal computers, tablets, smartphones, workstations, servers, electronic storage, IT management software, and smart TVs.",
             "contactEmail": "sales@lenovo.com",
             "contactPhone": "+1-855-253-6686",
-            "deliveryTime": "20-35 days"
+            "deliveryTime": "20-40 days",
+            "isVerified": True
         })
         
-        asus_supplier = self.create_supplier_sync({
-            "name": "ASUS",
-            "logoUrl": "https://logo.clearbit.com/asus.com",
-            "website": "https://www.asus.com",
-            "country": "Taiwan",
-            "description": "Taiwanese multinational computer and phone hardware and electronics company.",
-            "contactEmail": "sales@asus.com",
-            "contactPhone": "+1-888-678-3688",
-            "deliveryTime": "15-25 days"
-        })
-        
-        acer_supplier = self.create_supplier_sync({
-            "name": "Acer",
-            "logoUrl": "https://logo.clearbit.com/acer.com",
-            "website": "https://www.acer.com",
-            "country": "Taiwan",
-            "description": "Taiwanese multinational hardware and electronics corporation specializing in computers and related products.",
-            "contactEmail": "sales@acer.com",
-            "contactPhone": "+1-866-695-2237",
-            "deliveryTime": "15-30 days"
-        })
-        
-        # Create sample products for each supplier
-        
-        # Dell Laptops
+        # Create laptop products
+        # Dell laptop
         self.create_product_sync({
             "supplierId": dell_supplier.id,
-            "name": "Dell Latitude 5420",
+            "name": "Dell Latitude 7430",
             "category": "Laptops",
-            "description": "Business laptop with enhanced security features and long battery life",
-            "price": 999.99,
+            "description": "Enterprise-grade business laptop with excellent performance and security features.",
+            "price": 1499.99,
             "specifications": {
                 "os": "Windows 11 Pro",
-                "processor": "Intel Core i5-1135G7",
+                "processor": "Intel Core i7-1265U",
                 "memory": "16GB DDR4",
                 "storage": "512GB SSD",
                 "display": "14-inch FHD (1920 x 1080)",
-                "battery": "Up to 10 hours",
+                "battery": "12 hours",
                 "durability": "MIL-STD-810H tested",
-                "connectivity": "Wi-Fi 6, Bluetooth 5.1",
-                "warranty": "3 year ProSupport"
+                "connectivity": "Wi-Fi 6E, Bluetooth 5.2"
             },
             "warranty": "3 years ProSupport"
         })
         
+        # HP laptop
         self.create_product_sync({
-            "supplierId": dell_supplier.id,
-            "name": "Dell Precision 7560",
+            "supplierId": hp_supplier.id,
+            "name": "HP EliteBook 840 G9",
             "category": "Laptops",
-            "description": "Powerful mobile workstation for professional applications",
-            "price": 1899.99,
+            "description": "Premium business laptop designed for professionals with advanced security features.",
+            "price": 1399.99,
             "specifications": {
                 "os": "Windows 11 Pro",
-                "processor": "Intel Core i7-11850H",
-                "memory": "32GB DDR4",
-                "storage": "1TB SSD",
-                "display": "15.6-inch UHD (3840 x 2160)",
-                "battery": "Up to 8 hours",
+                "processor": "Intel Core i5-1245U",
+                "memory": "16GB DDR5",
+                "storage": "512GB NVMe SSD",
+                "display": "14-inch FHD (1920 x 1080)",
+                "battery": "10 hours",
                 "durability": "MIL-STD-810H tested",
-                "connectivity": "Wi-Fi 6, Bluetooth 5.2",
-                "warranty": "3 year ProSupport"
+                "connectivity": "Wi-Fi 6E, Bluetooth 5.2"
             },
-            "warranty": "3 years ProSupport"
+            "warranty": "3 years HP Care Pack"
         })
         
-        # Dell Monitors
+        # Lenovo laptop
+        self.create_product_sync({
+            "supplierId": lenovo_supplier.id,
+            "name": "Lenovo ThinkPad X1 Carbon Gen 10",
+            "category": "Laptops",
+            "description": "Ultra-lightweight premium business laptop with exceptional build quality.",
+            "price": 1699.99,
+            "specifications": {
+                "os": "Windows 11 Pro",
+                "processor": "Intel Core i7-1260P",
+                "memory": "16GB LPDDR5",
+                "storage": "1TB SSD",
+                "display": "14-inch WUXGA (1920 x 1200)",
+                "battery": "14 hours",
+                "durability": "MIL-STD-810H tested",
+                "connectivity": "Wi-Fi 6E, Bluetooth 5.2"
+            },
+            "warranty": "3 years Lenovo Premier Support"
+        })
+        
+        # Create monitor products
+        # Dell monitor
         self.create_product_sync({
             "supplierId": dell_supplier.id,
-            "name": "Dell UltraSharp U2720Q",
+            "name": "Dell UltraSharp U2723QE",
             "category": "Monitors",
-            "description": "27-inch 4K UHD monitor with USB-C connectivity",
+            "description": "Professional 4K USB-C Hub Monitor with excellent color accuracy.",
             "price": 599.99,
             "specifications": {
                 "screenSize": "27 inches",
                 "resolution": "4K UHD (3840 x 2160)",
                 "panelTech": "IPS",
-                "brightness": "350 cd/m²",
-                "contrastRatio": "1300:1",
+                "brightness": "400 cd/m²",
+                "contrastRatio": "2000:1",
                 "connectivity": "HDMI, DisplayPort, USB-C",
-                "adjustability": "Height, tilt, swivel, pivot",
-                "warranty": "3 years Advanced Exchange"
+                "adjustability": "Height, tilt, swivel, pivot adjustable"
             },
-            "warranty": "3 years Advanced Exchange"
+            "warranty": "3 years Advanced Exchange Service"
         })
         
-        # HP Laptops
-        self.create_product_sync({
-            "supplierId": hp_supplier.id,
-            "name": "HP ProBook 450 G8",
-            "category": "Laptops",
-            "description": "Reliable business laptop with comprehensive security features",
-            "price": 889.99,
-            "specifications": {
-                "os": "Windows 11 Pro",
-                "processor": "Intel Core i5-1135G7",
-                "memory": "8GB DDR4",
-                "storage": "256GB SSD",
-                "display": "15.6-inch FHD (1920 x 1080)",
-                "battery": "Up to 9 hours",
-                "durability": "Spill-resistant keyboard",
-                "connectivity": "Wi-Fi 6, Bluetooth 5.0",
-                "warranty": "1 year standard"
-            },
-            "warranty": "1 year standard"
-        })
-        
-        # HP Monitors
+        # HP monitor
         self.create_product_sync({
             "supplierId": hp_supplier.id,
             "name": "HP E27u G4",
             "category": "Monitors",
-            "description": "27-inch QHD monitor with USB-C",
-            "price": 379.99,
+            "description": "Business-class QHD monitor with USB-C and ergonomic stand.",
+            "price": 399.99,
             "specifications": {
                 "screenSize": "27 inches",
                 "resolution": "QHD (2560 x 1440)",
@@ -304,40 +254,18 @@ class MemStorage:
                 "brightness": "300 cd/m²",
                 "contrastRatio": "1000:1",
                 "connectivity": "HDMI, DisplayPort, USB-C",
-                "adjustability": "Height, tilt, swivel, pivot",
-                "warranty": "3 years"
+                "adjustability": "Height, tilt, swivel adjustable"
             },
-            "warranty": "3 years"
+            "warranty": "3 years standard"
         })
         
-        # Lenovo Laptops
-        self.create_product_sync({
-            "supplierId": lenovo_supplier.id,
-            "name": "Lenovo ThinkPad L14",
-            "category": "Laptops",
-            "description": "Durable business laptop with advanced security features",
-            "price": 849.99,
-            "specifications": {
-                "os": "Windows 11 Pro",
-                "processor": "Intel Core i5-1135G7",
-                "memory": "8GB DDR4",
-                "storage": "256GB SSD",
-                "display": "14-inch FHD (1920 x 1080)",
-                "battery": "Up to 10 hours",
-                "durability": "MIL-STD-810H tested",
-                "connectivity": "Wi-Fi 6, Bluetooth 5.1",
-                "warranty": "1 year depot"
-            },
-            "warranty": "1 year depot"
-        })
-        
-        # Lenovo Monitors
+        # Lenovo monitor
         self.create_product_sync({
             "supplierId": lenovo_supplier.id,
             "name": "Lenovo ThinkVision P27h-20",
             "category": "Monitors",
-            "description": "27-inch QHD monitor with USB-C docking",
-            "price": 449.99,
+            "description": "Professional QHD monitor with USB-C docking and factory calibration.",
+            "price": 499.99,
             "specifications": {
                 "screenSize": "27 inches",
                 "resolution": "QHD (2560 x 1440)",
@@ -345,13 +273,11 @@ class MemStorage:
                 "brightness": "350 cd/m²",
                 "contrastRatio": "1000:1",
                 "connectivity": "HDMI, DisplayPort, USB-C",
-                "adjustability": "Height, tilt, swivel, pivot",
-                "warranty": "3 years"
+                "adjustability": "Height, tilt, swivel, pivot adjustable"
             },
-            "warranty": "3 years"
+            "warranty": "3 years Lenovo Premier Support"
         })
     
-    # Synchronous versions for sample data initialization
     def create_user_sync(self, user_data: dict) -> User:
         """Create a new user (sync version for initialization)"""
         id = self.user_id_counter
@@ -359,7 +285,6 @@ class MemStorage:
         
         user = User(id=id, **user_data)
         self.users[id] = user
-        
         return user
     
     def create_supplier_sync(self, supplier_data: dict) -> Supplier:
@@ -369,7 +294,6 @@ class MemStorage:
         
         supplier = Supplier(id=id, **supplier_data)
         self.suppliers[id] = supplier
-        
         return supplier
     
     def create_product_sync(self, product_data: dict) -> Product:
@@ -379,5 +303,4 @@ class MemStorage:
         
         product = Product(id=id, **product_data)
         self.products[id] = product
-        
         return product
