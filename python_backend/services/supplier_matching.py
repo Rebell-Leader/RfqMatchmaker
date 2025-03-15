@@ -5,534 +5,507 @@ This module provides functions to match suppliers with RFQ requirements
 based on various criteria including price, quality, and delivery time.
 """
 
-from typing import List, Dict, Any, Optional, Tuple
 import re
-from datetime import datetime
+from typing import List, Dict, Any, Tuple, Optional
+import json
 
-from ..models.schemas import ExtractedRequirement, Supplier, Product, SupplierMatch, MatchDetails
-from ..models.db_storage import storage
+from ..models.db_storage import DatabaseStorage
+from ..models.schemas import SupplierMatch, Product, Supplier, ExtractedRequirement
+
+# Initialize database storage
+db_storage = DatabaseStorage()
 
 def parse_delivery_time(delivery_time: str) -> float:
     """Parse delivery time string to get average days"""
-    pattern = r'(\d+)-(\d+)'
-    match = re.search(pattern, delivery_time)
-    if match:
-        min_days = int(match.group(1))
-        max_days = int(match.group(2))
-        return (min_days + max_days) / 2
-    return 30  # Default to 30 days if no pattern is found
+    if not delivery_time:
+        return 30.0
+    
+    # Try to extract numbers from the delivery time string
+    numbers = re.findall(r'\d+', delivery_time)
+    if not numbers:
+        return 30.0
+    
+    # If there's a range (e.g., "15-30 days"), take the average
+    if len(numbers) >= 2:
+        return (float(numbers[0]) + float(numbers[1])) / 2
+    
+    # If there's just one number, use that
+    return float(numbers[0])
 
 def compare_processors(requirement: str, spec: str) -> float:
     """Compare processor specifications and return a score between 0 and 1"""
-    # Extract processor family and generation if possible
-    requirement = requirement.lower()
-    spec = spec.lower()
+    if not requirement or not spec:
+        return 0.5
+    
+    req_lower = requirement.lower()
+    spec_lower = spec.lower()
     
     # Check for exact match
-    if requirement == spec:
+    if req_lower == spec_lower:
         return 1.0
     
-    # Check for processor family match (i.e., Intel Core i7, AMD Ryzen 7)
-    req_family = re.search(r'(i\d|ryzen \d)', requirement)
-    spec_family = re.search(r'(i\d|ryzen \d)', spec)
+    # Extract processor generation and model information
+    req_gen = re.search(r'i(\d+)', req_lower)
+    spec_gen = re.search(r'i(\d+)', spec_lower)
     
-    if req_family and spec_family and req_family.group() == spec_family.group():
-        return 0.8
-    
-    # More general match
-    if 'i7' in requirement and 'i7' in spec:
-        return 0.7
-    if 'i5' in requirement and 'i5' in spec:
-        return 0.7
-    if 'i3' in requirement and 'i3' in spec:
-        return 0.7
-    if 'ryzen 7' in requirement and 'ryzen 7' in spec:
-        return 0.7
-    if 'ryzen 5' in requirement and 'ryzen 5' in spec:
-        return 0.7
-    
-    # Check for generation
-    req_gen = re.search(r'(\d{4,5}[a-zA-Z]*)', requirement)
-    spec_gen = re.search(r'(\d{4,5}[a-zA-Z]*)', spec)
-    
+    # Compare Intel Core i-series processors
     if req_gen and spec_gen:
-        req_gen_num = req_gen.group()
-        spec_gen_num = spec_gen.group()
-        if req_gen_num == spec_gen_num:
-            return 0.6
+        req_i = int(req_gen.group(1))
+        spec_i = int(spec_gen.group(1))
+        
+        # Higher generation is better
+        if spec_i > req_i:
+            return 1.0
+        elif spec_i == req_i:
+            return 0.9
+        else:
+            return max(0.5, 1.0 - (req_i - spec_i) * 0.2)  # Deduct 20% per generation below
     
-    # Basic processor type match
-    processor_types = ['intel', 'amd', 'core', 'ryzen', 'snapdragon']
-    for p_type in processor_types:
-        if p_type in requirement and p_type in spec:
-            return 0.5
+    # Compare AMD Ryzen processors
+    req_ryzen = re.search(r'ryzen\s*(\d+)', req_lower)
+    spec_ryzen = re.search(r'ryzen\s*(\d+)', spec_lower)
     
-    return 0.3  # Low match
+    if req_ryzen and spec_ryzen:
+        req_r = int(req_ryzen.group(1))
+        spec_r = int(spec_ryzen.group(1))
+        
+        # Higher series is better
+        if spec_r > req_r:
+            return 1.0
+        elif spec_r == req_r:
+            return 0.9
+        else:
+            return max(0.5, 1.0 - (req_r - spec_r) * 0.2)  # Deduct 20% per series below
+    
+    # If types don't match, give a moderate score if the spec seems high-end
+    if 'i7' in spec_lower or 'i9' in spec_lower or 'ryzen 7' in spec_lower or 'ryzen 9' in spec_lower:
+        return 0.8
+    elif 'i5' in spec_lower or 'ryzen 5' in spec_lower:
+        return 0.7
+    
+    # Default score for other cases
+    return 0.6
 
 def compare_memory(requirement: str, spec: str) -> float:
     """Compare memory specifications and return a score between 0 and 1"""
-    # Extract memory capacity
-    req_gb = re.search(r'(\d+)\s*gb', requirement.lower())
-    spec_gb = re.search(r'(\d+)\s*gb', spec.lower())
-    
-    if req_gb and spec_gb:
-        req_amount = int(req_gb.group(1))
-        spec_amount = int(spec_gb.group(1))
-        
-        # Exact match
-        if req_amount == spec_amount:
-            return 1.0
-        
-        # Product has more memory than required
-        if spec_amount > req_amount:
-            # Calculate a score based on how much more memory the product has
-            # Max score for 2x required memory, diminishing returns beyond that
-            ratio = min(spec_amount / req_amount, 2.0)
-            return 0.7 + (0.3 * (ratio - 1))
-        
-        # Product has less memory than required
-        # Score drops quickly if memory is less than required
-        ratio = spec_amount / req_amount
-        return max(0.2, ratio * 0.7)
-    
-    # If we can't parse the memory amounts, check for type match (DDR4, DDR5)
-    ddr_type_req = re.search(r'(ddr\d)', requirement.lower())
-    ddr_type_spec = re.search(r'(ddr\d)', spec.lower())
-    
-    if ddr_type_req and ddr_type_spec and ddr_type_req.group() == ddr_type_spec.group():
+    if not requirement or not spec:
         return 0.5
     
-    return 0.3  # Low match
+    # Extract memory size in GB
+    req_size = re.search(r'(\d+)\s*gb', requirement.lower())
+    spec_size = re.search(r'(\d+)\s*gb', spec.lower())
+    
+    if req_size and spec_size:
+        req_gb = int(req_size.group(1))
+        spec_gb = int(spec_size.group(1))
+        
+        # More memory is better
+        if spec_gb >= req_gb:
+            # Exactly matching or exceeding gets full score
+            return 1.0
+        else:
+            # Deduct 20% for each 4GB less than required
+            return max(0.5, 1.0 - ((req_gb - spec_gb) / 4) * 0.2)
+    
+    # Check for DDR type
+    req_ddr = re.search(r'ddr(\d)', requirement.lower())
+    spec_ddr = re.search(r'ddr(\d)', spec.lower())
+    
+    if req_ddr and spec_ddr:
+        req_ver = int(req_ddr.group(1))
+        spec_ver = int(spec_ddr.group(1))
+        
+        # Higher DDR version is better
+        if spec_ver > req_ver:
+            return 0.9  # Bonus for better DDR
+        elif spec_ver == req_ver:
+            return 0.8
+        else:
+            return max(0.5, 0.8 - (req_ver - spec_ver) * 0.1)  # Deduct 10% per DDR version below
+    
+    # Default score for other cases
+    return 0.6
 
 def compare_storage(requirement: str, spec: str) -> float:
     """Compare storage specifications and return a score between 0 and 1"""
-    # Extract storage capacity
-    req_capacity = re.search(r'(\d+)\s*(gb|tb)', requirement.lower())
-    spec_capacity = re.search(r'(\d+)\s*(gb|tb)', spec.lower())
+    if not requirement or not spec:
+        return 0.5
     
-    if req_capacity and spec_capacity:
-        req_amount = int(req_capacity.group(1))
-        req_unit = req_capacity.group(2)
-        
-        spec_amount = int(spec_capacity.group(1))
-        spec_unit = spec_capacity.group(2)
-        
-        # Convert to GB for comparison
-        if req_unit == 'tb':
-            req_amount *= 1024
-        if spec_unit == 'tb':
-            spec_amount *= 1024
-        
-        # Exact match
-        if req_amount == spec_amount:
-            return 1.0
-        
-        # Product has more storage than required
-        if spec_amount > req_amount:
-            # Calculate a score based on how much more storage the product has
-            # Max score for 2x required storage, diminishing returns beyond that
-            ratio = min(spec_amount / req_amount, 2.0)
-            return 0.7 + (0.3 * (ratio - 1))
-        
-        # Product has less storage than required
-        # Score drops quickly if storage is less than required
-        ratio = spec_amount / req_amount
-        return max(0.2, ratio * 0.7)
+    req_lower = requirement.lower()
+    spec_lower = spec.lower()
     
-    # Check for storage type match (SSD, HDD, NVMe)
-    storage_types = ['ssd', 'hdd', 'nvme', 'pcie']
-    for s_type in storage_types:
-        if s_type in requirement.lower() and s_type in spec.lower():
-            return 0.5
+    # Convert TB to GB for comparison
+    req_tb = re.search(r'(\d+(\.\d+)?)\s*tb', req_lower)
+    spec_tb = re.search(r'(\d+(\.\d+)?)\s*tb', spec_lower)
     
-    return 0.3  # Low match
+    # Extract GB values
+    req_gb = re.search(r'(\d+)\s*gb', req_lower)
+    spec_gb = re.search(r'(\d+)\s*gb', spec_lower)
+    
+    # Calculate storage sizes in GB
+    req_size_gb = 0
+    spec_size_gb = 0
+    
+    if req_tb:
+        req_size_gb = float(req_tb.group(1)) * 1024
+    elif req_gb:
+        req_size_gb = float(req_gb.group(1))
+        
+    if spec_tb:
+        spec_size_gb = float(spec_tb.group(1)) * 1024
+    elif spec_gb:
+        spec_size_gb = float(spec_gb.group(1))
+    
+    # Compare storage types (SSD is better than HDD)
+    req_type_score = 0.8 if 'ssd' in req_lower else 0.5
+    spec_type_score = 0.8 if 'ssd' in spec_lower else 0.5
+    
+    # NVMe is better than regular SSD
+    if 'nvme' in spec_lower:
+        spec_type_score = 1.0
+    
+    # Compare storage size
+    size_score = 0.7
+    if req_size_gb > 0 and spec_size_gb > 0:
+        if spec_size_gb >= req_size_gb:
+            size_score = 1.0
+        else:
+            # Deduct 10% for each 256GB less than required
+            size_score = max(0.5, 1.0 - ((req_size_gb - spec_size_gb) / 256) * 0.1)
+    
+    # Combine scores (size is more important than type)
+    return size_score * 0.7 + spec_type_score * 0.3
 
 def compare_display(requirement: str, spec: str) -> float:
     """Compare display specifications and return a score between 0 and 1"""
-    # Check for resolution match
-    resolutions = ['hd', 'fhd', '1080p', '4k', 'uhd', 'qhd', '1440p', '2160p']
-    for res in resolutions:
-        if res in requirement.lower() and res in spec.lower():
-            return 0.8
+    if not requirement or not spec:
+        return 0.5
     
-    # Check for exact resolution spec
-    res_patterns = [r'(\d+)\s*x\s*(\d+)', r'(\d+)p']
-    for pattern in res_patterns:
-        req_match = re.search(pattern, requirement.lower())
-        spec_match = re.search(pattern, spec.lower())
-        if req_match and spec_match and req_match.group() == spec_match.group():
-            return 1.0
+    req_lower = requirement.lower()
+    spec_lower = spec.lower()
     
-    # Check for panel technology match
-    panel_techs = ['ips', 'tn', 'va', 'oled', 'amoled', 'retina']
-    for tech in panel_techs:
-        if tech in requirement.lower() and tech in spec.lower():
-            return 0.7
+    # Extract display size
+    req_size = re.search(r'(\d+(\.\d+)?)["\'-]?\s*(inch|in)?', req_lower)
+    spec_size = re.search(r'(\d+(\.\d+)?)["\'-]?\s*(inch|in)?', spec_lower)
     
-    # Check for brightness
-    req_nits = re.search(r'(\d+)\s*nits', requirement.lower())
-    spec_nits = re.search(r'(\d+)\s*nits', spec.lower())
+    # Extract resolution
+    res_scores = {
+        'hd': 0.6,
+        '1366': 0.6,
+        '768': 0.6,
+        'fhd': 0.8,
+        '1080': 0.8,
+        '1920': 0.8,
+        'qhd': 0.9,
+        '1440': 0.9,
+        '2560': 0.9,
+        '4k': 1.0,
+        'uhd': 1.0,
+        '2160': 1.0,
+        '3840': 1.0
+    }
     
-    if req_nits and spec_nits:
-        req_brightness = int(req_nits.group(1))
-        spec_brightness = int(spec_nits.group(1))
-        
-        if spec_brightness >= req_brightness:
-            return 0.9
-        else:
-            # Score based on how close to required brightness
-            ratio = spec_brightness / req_brightness
-            return max(0.3, ratio * 0.9)
-    
-    # Screen size match
-    req_size = re.search(r'(\d+\.?\d*)\s*inches?', requirement.lower())
-    spec_size = re.search(r'(\d+\.?\d*)\s*inches?', spec.lower())
-    
+    # Calculate size score
+    size_score = 0.7
     if req_size and spec_size:
         req_inches = float(req_size.group(1))
         spec_inches = float(spec_size.group(1))
         
-        # Within 1 inch difference
-        if abs(req_inches - spec_inches) <= 1:
-            return 0.8
-        # Within 2 inches difference
-        elif abs(req_inches - spec_inches) <= 2:
-            return 0.6
+        if abs(spec_inches - req_inches) <= 1:
+            # Within 1 inch is good enough
+            size_score = 1.0
+        else:
+            # Deduct 10% for each inch difference, but not below 0.5
+            size_score = max(0.5, 1.0 - abs(spec_inches - req_inches) * 0.1)
     
-    return 0.4  # Moderate match if some display specs mentioned
+    # Calculate resolution score
+    res_score = 0.7  # Default
+    for key, score in res_scores.items():
+        if key in req_lower and key in spec_lower:
+            res_score = score
+            break
+        elif key in spec_lower and key not in req_lower:
+            # Higher resolution than required is good
+            for req_key, req_score in res_scores.items():
+                if req_key in req_lower and res_scores[key] > req_score:
+                    res_score = min(1.0, req_score + 0.1)  # Slight bonus for better resolution
+                    break
+    
+    # Combine scores (resolution is more important than exact size)
+    return size_score * 0.4 + res_score * 0.6
 
 def compare_warranty(requirement: str, spec: str) -> float:
     """Compare warranty specifications and return a score between 0 and 1"""
-    # Extract warranty duration
-    req_years = re.search(r'(\d+)\s*years?', requirement.lower())
-    spec_years = re.search(r'(\d+)\s*years?', spec.lower())
-    
-    if req_years and spec_years:
-        req_duration = int(req_years.group(1))
-        spec_duration = int(spec_years.group(1))
-        
-        if spec_duration >= req_duration:
-            # Extra warranty years provide diminishing returns
-            extra_years = min(spec_duration - req_duration, 3)  # Cap at 3 years extra
-            return 0.7 + (extra_years * 0.1)
-        else:
-            # Score drops if warranty is shorter than required
-            ratio = spec_duration / req_duration
-            return max(0.2, ratio * 0.7)
-    
-    # Check for warranty type match
-    warranty_types = ['onsite', 'next business day', 'pro support', 'premium', 'care pack', 'exchange']
-    for w_type in warranty_types:
-        if w_type in requirement.lower() and w_type in spec.lower():
-            return 0.8
-    
-    # If warranty is mentioned but can't parse duration
-    if 'warranty' in requirement.lower() and 'warranty' in spec.lower():
+    if not requirement or not spec:
         return 0.5
     
-    return 0.3  # Low match
+    # Extract warranty duration in years
+    req_years = re.search(r'(\d+)\s*(year|yr)', requirement.lower())
+    spec_years = re.search(r'(\d+)\s*(year|yr)', spec.lower())
+    
+    # Calculate warranty period score
+    if req_years and spec_years:
+        req_period = int(req_years.group(1))
+        spec_period = int(spec_years.group(1))
+        
+        if spec_period >= req_period:
+            return 1.0  # Meeting or exceeding required warranty
+        else:
+            # Deduct 25% for each year less than required
+            return max(0.5, 1.0 - (req_period - spec_period) * 0.25)
+    
+    # Check warranty type (onsite is better than return-to-base)
+    warranty_type_score = 0.6  # Default
+    
+    if 'onsite' in spec.lower():
+        warranty_type_score = 0.9
+    if 'next day' in spec.lower() or 'nbd' in spec.lower():
+        warranty_type_score = 1.0
+    
+    return warranty_type_score
 
 def calculate_match_score(product: Product, supplier: Supplier, requirements: ExtractedRequirement, category: str) -> Tuple[float, Dict[str, float]]:
     """Calculate match score between product and RFQ requirements"""
-    total_score = 0.0
-    max_possible_score = 0.0
-    match_details = {}
-    
     # Get category-specific requirements
-    if category.lower() == "laptops" and requirements.laptops:
-        category_req = requirements.laptops
-        specs = product.specifications
-        
-        # Processor match
-        if "processor" in specs and hasattr(category_req, "processor"):
-            processor_score = compare_processors(category_req.processor, specs["processor"])
-            total_score += processor_score * 15
-            max_possible_score += 15
-        
-        # Memory match
-        if "memory" in specs and hasattr(category_req, "memory"):
-            memory_score = compare_memory(category_req.memory, specs["memory"])
-            total_score += memory_score * 15
-            max_possible_score += 15
-        
-        # Storage match
-        if "storage" in specs and hasattr(category_req, "storage"):
-            storage_score = compare_storage(category_req.storage, specs["storage"])
-            total_score += storage_score * 15
-            max_possible_score += 15
-        
-        # Display match
-        if "display" in specs and hasattr(category_req, "display"):
-            display_score = compare_display(category_req.display, specs["display"])
-            total_score += display_score * 10
-            max_possible_score += 10
-        
-        # OS match
-        if "os" in specs and hasattr(category_req, "os"):
-            os_score = 1.0 if category_req.os.lower() in specs["os"].lower() else 0.3
-            total_score += os_score * 10
-            max_possible_score += 10
-        
-        # Battery match
-        if "battery" in specs and hasattr(category_req, "battery"):
-            req_hours = re.search(r'(\d+)\s*hours?', category_req.battery)
-            spec_hours = re.search(r'(\d+)\s*hours?', specs["battery"])
-            
-            if req_hours and spec_hours:
-                req_time = int(req_hours.group(1))
-                spec_time = int(spec_hours.group(1))
-                
-                if spec_time >= req_time:
-                    # Extra battery life provides diminishing returns
-                    battery_score = 0.7 + min((spec_time - req_time) / 10, 0.3)
-                else:
-                    # Score drops if battery life is shorter
-                    battery_score = max(0.2, (spec_time / req_time) * 0.7)
-                
-                total_score += battery_score * 10
-                max_possible_score += 10
-        
-        # Warranty match
-        if "warranty" in product.warranty and hasattr(category_req, "warranty"):
-            warranty_score = compare_warranty(category_req.warranty, product.warranty)
-            total_score += warranty_score * 10
-            max_possible_score += 10
-            
-    elif category.lower() == "monitors" and requirements.monitors:
-        category_req = requirements.monitors
-        specs = product.specifications
-        
-        # Screen size match
-        if "screenSize" in specs and hasattr(category_req, "screenSize"):
-            req_size = re.search(r'(\d+\.?\d*)\s*inches?', category_req.screenSize)
-            spec_size = re.search(r'(\d+\.?\d*)\s*inches?', specs["screenSize"])
-            
-            if req_size and spec_size:
-                req_inches = float(req_size.group(1))
-                spec_inches = float(spec_size.group(1))
-                
-                # Calculate score based on how close the sizes are
-                size_diff = abs(req_inches - spec_inches)
-                size_score = max(0.0, 1.0 - (size_diff / req_inches))
-                
-                total_score += size_score * 20
-                max_possible_score += 20
-        
-        # Resolution match
-        if "resolution" in specs and hasattr(category_req, "resolution"):
-            # Check for exact match
-            resolution_score = 1.0 if category_req.resolution.lower() in specs["resolution"].lower() else 0.0
-            
-            # If no exact match, check for resolution level
-            if resolution_score == 0.0:
-                res_levels = {
-                    "hd": 1,
-                    "fhd": 2,
-                    "qhd": 3,
-                    "uhd": 4,
-                    "4k": 4
-                }
-                
-                req_level = 0
-                spec_level = 0
-                
-                for level_name, level_value in res_levels.items():
-                    if level_name in category_req.resolution.lower():
-                        req_level = level_value
-                    if level_name in specs["resolution"].lower():
-                        spec_level = level_value
-                
-                if req_level > 0 and spec_level > 0:
-                    if spec_level >= req_level:
-                        resolution_score = 0.7 + min((spec_level - req_level) * 0.1, 0.3)
-                    else:
-                        resolution_score = max(0.2, (spec_level / req_level) * 0.7)
-            
-            total_score += resolution_score * 20
-            max_possible_score += 20
-        
-        # Panel technology match
-        if "panelTech" in specs and hasattr(category_req, "panelTech"):
-            panel_score = 1.0 if category_req.panelTech.lower() in specs["panelTech"].lower() else 0.3
-            total_score += panel_score * 15
-            max_possible_score += 15
-        
-        # Brightness match
-        if "brightness" in specs and hasattr(category_req, "brightness"):
-            req_nits = re.search(r'(\d+)', category_req.brightness)
-            spec_nits = re.search(r'(\d+)', specs["brightness"])
-            
-            if req_nits and spec_nits:
-                req_value = int(req_nits.group(1))
-                spec_value = int(spec_nits.group(1))
-                
-                if spec_value >= req_value:
-                    brightness_score = 0.7 + min((spec_value - req_value) / (req_value * 2), 0.3)
-                else:
-                    brightness_score = max(0.2, (spec_value / req_value) * 0.7)
-                
-                total_score += brightness_score * 10
-                max_possible_score += 10
-        
-        # Connectivity match
-        if "connectivity" in specs and hasattr(category_req, "connectivity"):
-            connectivity_types = ["hdmi", "displayport", "vga", "usb-c", "thunderbolt"]
-            req_types = [t for t in connectivity_types if t in category_req.connectivity.lower()]
-            spec_types = [t for t in connectivity_types if t in specs["connectivity"].lower()]
-            
-            common_types = set(req_types).intersection(set(spec_types))
-            if req_types:
-                connectivity_score = len(common_types) / len(req_types)
-            else:
-                connectivity_score = 0.5  # Default if no specific types mentioned
-            
-            total_score += connectivity_score * 10
-            max_possible_score += 10
-            
-        # Adjustability match
-        if "adjustability" in specs and hasattr(category_req, "adjustability"):
-            adjustability_features = ["height", "tilt", "swivel", "pivot"]
-            req_features = [f for f in adjustability_features if f in category_req.adjustability.lower()]
-            spec_features = [f for f in adjustability_features if f in specs["adjustability"].lower()]
-            
-            common_features = set(req_features).intersection(set(spec_features))
-            if req_features:
-                adjustability_score = len(common_features) / len(req_features)
-            else:
-                adjustability_score = 0.5  # Default if no specific features mentioned
-            
-            total_score += adjustability_score * 10
-            max_possible_score += 10
-            
-        # Warranty match
-        if hasattr(category_req, "warranty"):
-            warranty_score = compare_warranty(category_req.warranty, product.warranty)
-            total_score += warranty_score * 10
-            max_possible_score += 10
+    category_req = None
+    specs = product.specifications if isinstance(product.specifications, dict) else {}
     
-    # Calculate price score (lower price = higher score)
-    # For calculating price score, we need to know other products in same category
-    # This will be handled separately
+    if category.lower() == "laptops" and hasattr(requirements, "laptops") and requirements.laptops:
+        category_req = requirements.laptops
+    elif category.lower() == "monitors" and hasattr(requirements, "monitors") and requirements.monitors:
+        category_req = requirements.monitors
+    
+    if not category_req:
+        return 50.0, {"price": 50.0, "quality": 50.0, "delivery": 50.0}
+    
+    # Get criteria weights
+    price_weight = requirements.criteria.price.get("weight", 50) if hasattr(requirements, "criteria") else 50
+    quality_weight = requirements.criteria.quality.get("weight", 30) if hasattr(requirements, "criteria") else 30
+    delivery_weight = requirements.criteria.delivery.get("weight", 20) if hasattr(requirements, "criteria") else 20
+    
+    # Calculate price score (lower price is better)
+    price_score = 50.0  # Default mid-range score
+    
+    # For more sophisticated price scoring, we would need to know the price range for the category
+    # Here we use a simple formula based on price point
+    if product.price <= 500:
+        price_score = 90.0  # Budget option, good for price-sensitive RFQs
+    elif product.price <= 1000:
+        price_score = 75.0  # Mid-range option
+    elif product.price <= 1500:
+        price_score = 60.0  # Higher-end option
+    else:
+        price_score = 40.0  # Premium option, not as good for price-sensitive RFQs
+    
+    # Calculate quality score
+    quality_score = 50.0  # Default mid-range score
+    quality_factors = []
+    
+    if category.lower() == "laptops":
+        # Processor comparison
+        if hasattr(category_req, "processor") and "processor" in specs:
+            proc_score = compare_processors(category_req.processor, specs["processor"]) * 100
+            quality_factors.append(("processor", proc_score))
+        
+        # Memory comparison
+        if hasattr(category_req, "memory") and "memory" in specs:
+            mem_score = compare_memory(category_req.memory, specs["memory"]) * 100
+            quality_factors.append(("memory", mem_score))
+        
+        # Storage comparison
+        if hasattr(category_req, "storage") and "storage" in specs:
+            storage_score = compare_storage(category_req.storage, specs["storage"]) * 100
+            quality_factors.append(("storage", storage_score))
+        
+        # Display comparison
+        if hasattr(category_req, "display") and "display" in specs:
+            display_score = compare_display(category_req.display, specs["display"]) * 100
+            quality_factors.append(("display", display_score))
+        
+        # Warranty comparison
+        if hasattr(category_req, "warranty") and hasattr(product, "warranty"):
+            warranty_score = compare_warranty(category_req.warranty, product.warranty) * 100
+            quality_factors.append(("warranty", warranty_score))
+    
+    elif category.lower() == "monitors":
+        # Screen size and resolution comparisons
+        if hasattr(category_req, "screenSize") and "screenSize" in specs:
+            screen_score = compare_display(category_req.screenSize, specs["screenSize"]) * 100
+            quality_factors.append(("screenSize", screen_score))
+        
+        if hasattr(category_req, "resolution") and "resolution" in specs:
+            res_score = compare_display(category_req.resolution, specs["resolution"]) * 100
+            quality_factors.append(("resolution", res_score))
+        
+        # Panel technology comparison
+        if hasattr(category_req, "panelTech") and "panelTech" in specs:
+            panel_score = 70.0  # Default
+            if specs["panelTech"].lower() == category_req.panelTech.lower():
+                panel_score = 100.0
+            elif "ips" in specs["panelTech"].lower() and not "ips" in category_req.panelTech.lower():
+                panel_score = 90.0  # IPS is generally better than other panels
+            quality_factors.append(("panelTech", panel_score))
+        
+        # Warranty comparison
+        if hasattr(category_req, "warranty") and hasattr(product, "warranty"):
+            warranty_score = compare_warranty(category_req.warranty, product.warranty) * 100
+            quality_factors.append(("warranty", warranty_score))
+    
+    # Calculate average quality score from all factors
+    if quality_factors:
+        quality_score = sum(score for _, score in quality_factors) / len(quality_factors)
     
     # Calculate delivery score
-    avg_delivery_days = parse_delivery_time(supplier.deliveryTime)
-    # Arbitrary formula: score decreases as delivery days increase
-    delivery_score = max(0.1, 1.0 - (avg_delivery_days / 60))  # Max 60 days
-    total_score += delivery_score * 5
-    max_possible_score += 5
+    delivery_score = 50.0  # Default mid-range score
     
-    # Calculate final percentage score
-    normalized_score = (total_score / max_possible_score) * 100 if max_possible_score > 0 else 0
+    # Parse delivery time and calculate score
+    delivery_days = parse_delivery_time(supplier.deliveryTime)
     
-    # Prepare match details - we'll calculate price score separately
-    match_details = {
-        "quality": normalized_score,  # Using overall match as quality score for now
-        "delivery": delivery_score * 100  # Convert to percentage
+    # For most business equipment, faster delivery is better
+    if delivery_days <= 7:
+        delivery_score = 100.0  # Excellent delivery time
+    elif delivery_days <= 14:
+        delivery_score = 90.0  # Very good delivery time
+    elif delivery_days <= 21:
+        delivery_score = 80.0  # Good delivery time
+    elif delivery_days <= 30:
+        delivery_score = 70.0  # Acceptable delivery time
+    elif delivery_days <= 45:
+        delivery_score = 60.0  # Below average delivery time
+    else:
+        delivery_score = 50.0  # Poor delivery time
+    
+    # Apply weights to individual scores
+    weighted_price_score = price_score * (price_weight / 100)
+    weighted_quality_score = quality_score * (quality_weight / 100)
+    weighted_delivery_score = delivery_score * (delivery_weight / 100)
+    
+    # Calculate total score
+    total_score = weighted_price_score + weighted_quality_score + weighted_delivery_score
+    
+    return total_score, {
+        "price": price_score,
+        "quality": quality_score,
+        "delivery": delivery_score
     }
-    
-    return (normalized_score, match_details)
 
 async def get_quantity_for_category(requirements: ExtractedRequirement, category: str) -> int:
     """Get quantity from requirements for a specific category"""
-    if category.lower() == "laptops" and requirements.laptops:
+    if category.lower() == "laptops" and hasattr(requirements, "laptops") and requirements.laptops:
         return requirements.laptops.quantity
-    elif category.lower() == "monitors" and requirements.monitors:
+    elif category.lower() == "monitors" and hasattr(requirements, "monitors") and requirements.monitors:
         return requirements.monitors.quantity
-    return 1  # Default to 1 if not specified
+    return 1  # Default quantity
 
 async def calculate_price_score(product: Product, all_products: List[Product], criteria: Dict[str, Dict[str, int]]) -> float:
     """Calculate price score compared to other products in the same category"""
-    category_products = [p for p in all_products if p.category.lower() == product.category.lower()]
+    if not all_products:
+        return 50.0
     
-    if not category_products:
-        return 0.0
+    # Get price range for this category
+    prices = [p.price for p in all_products if p.category == product.category]
+    if not prices:
+        return 50.0
     
-    # Get min and max prices in category
-    prices = [p.price for p in category_products]
     min_price = min(prices)
     max_price = max(prices)
-    
-    # If all products have the same price
-    if min_price == max_price:
-        return 100.0
-    
-    # Calculate score: 100 for lowest price, 0 for highest price
     price_range = max_price - min_price
-    relative_position = (max_price - product.price) / price_range
     
-    return relative_position * 100
+    # Avoid division by zero
+    if price_range == 0:
+        return 80.0
+    
+    # Calculate relative position in price range (lower is better)
+    relative_position = (product.price - min_price) / price_range
+    
+    # Invert score (lower price = higher score)
+    price_score = 100 - (relative_position * 100)
+    
+    # Ensure score is within 0-100 range
+    return max(0, min(100, price_score))
 
 async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
     """Match suppliers based on RFQ requirements"""
-    # Get the RFQ
-    rfq = await storage.get_rfq_by_id(rfq_id)
-    if not rfq:
-        return []
-    
-    # Get all suppliers and products
-    suppliers = await storage.get_all_suppliers()
-    all_products = []
-    
-    # Collect all products for all suppliers
-    for supplier in suppliers:
-        products = await storage.get_products_by_supplier(supplier.id)
-        all_products.extend(products)
-    
-    # Get categories from RFQ
-    categories = rfq.extractedRequirements.categories
-    
-    # Store matches for all categories
-    all_matches = []
-    
-    # Process each category
-    for category in categories:
-        # Get products for this category
-        category_products = [p for p in all_products if p.category.lower() == category.lower()]
+    try:
+        # Get RFQ data
+        rfq = await db_storage.get_rfq_by_id(rfq_id)
+        if not rfq:
+            print(f"RFQ with ID {rfq_id} not found")
+            return []
         
-        # Process each product
-        for product in category_products:
-            # Find the supplier for this product
-            supplier = next((s for s in suppliers if s.id == product.supplierId), None)
-            if not supplier:
+        requirements = rfq.extractedRequirements
+        if not requirements:
+            print(f"No requirements found for RFQ {rfq_id}")
+            return []
+        
+        # Convert requirements to object if stored as JSON string
+        if isinstance(requirements, str):
+            try:
+                requirements = json.loads(requirements)
+            except:
+                print(f"Failed to parse requirements for RFQ {rfq_id}")
+                return []
+        
+        # Get categories from requirements
+        categories = requirements.get("categories", []) if isinstance(requirements, dict) else requirements.categories
+        if not categories:
+            print(f"No categories found for RFQ {rfq_id}")
+            return []
+        
+        match_results = []
+        
+        for category in categories:
+            # Get all products in this category
+            products = await db_storage.get_products_by_category(category)
+            
+            if not products:
+                print(f"No products found for category {category}")
                 continue
             
-            # Calculate match score
-            raw_score, match_details = calculate_match_score(product, supplier, rfq.extractedRequirements, category)
-            
-            # Calculate price score
-            price_score = await calculate_price_score(product, all_products, rfq.extractedRequirements.criteria.dict())
-            match_details["price"] = price_score
-            
-            # Calculate quantity for category
-            quantity = await get_quantity_for_category(rfq.extractedRequirements, category)
-            
-            # Calculate total price
-            total_price = product.price * quantity
-            
-            # Calculate final weighted score based on criteria
-            criteria = rfq.extractedRequirements.criteria.dict()
-            final_score = (
-                (price_score * criteria["price"]["weight"] / 100) +
-                (match_details["quality"] * criteria["quality"]["weight"] / 100) +
-                (match_details["delivery"] * criteria["delivery"]["weight"] / 100)
-            )
-            
-            # Create supplier match object
-            match = SupplierMatch(
-                supplier=supplier,
-                product=product,
-                matchScore=final_score,
-                matchDetails=MatchDetails(
-                    price=price_score,
-                    quality=match_details["quality"],
-                    delivery=match_details["delivery"]
-                ),
-                totalPrice=total_price
-            )
-            
-            all_matches.append(match)
+            # For each product, evaluate the match
+            for product in products:
+                # Get supplier details
+                supplier = await db_storage.get_supplier_by_id(product.supplierId)
+                
+                if supplier:
+                    # Calculate match score based on RFQ criteria
+                    match_score, match_details = calculate_match_score(product, supplier, requirements, category)
+                    
+                    # Calculate total price based on quantity
+                    quantity = await get_quantity_for_category(requirements, category)
+                    total_price = product.price * quantity
+                    
+                    # Create a supplier match object
+                    supplier_match = SupplierMatch(
+                        supplier=supplier,
+                        product=product,
+                        matchScore=match_score,
+                        matchDetails={
+                            "price": match_details["price"],
+                            "quality": match_details["quality"],
+                            "delivery": match_details["delivery"]
+                        },
+                        totalPrice=total_price
+                    )
+                    
+                    match_results.append(supplier_match)
+                    
+                    # Create a proposal in storage
+                    await db_storage.create_proposal({
+                        "rfqId": rfq_id,
+                        "productId": product.id,
+                        "score": match_score,
+                        "priceScore": match_details["price"],
+                        "qualityScore": match_details["quality"],
+                        "deliveryScore": match_details["delivery"],
+                        "emailContent": None
+                    })
+        
+        # Sort match results by match score (descending)
+        match_results.sort(key=lambda x: x.matchScore, reverse=True)
+        
+        return match_results
     
-    # Sort matches by score (highest first)
-    sorted_matches = sorted(all_matches, key=lambda m: m.matchScore, reverse=True)
-    
-    return sorted_matches
+    except Exception as e:
+        print(f"Error matching suppliers for RFQ {rfq_id}: {str(e)}")
+        return []
