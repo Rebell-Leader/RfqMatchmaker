@@ -24,7 +24,7 @@ type ManualRfqFormValues = z.infer<typeof manualRfqSchema>;
 export default function UploadRfq() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { setRfqId } = useRfq();
+  const { setRfqId, setCurrentStep } = useRfq();
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -90,8 +90,9 @@ export default function UploadRfq() {
       // Upload file
       const rfqId = await uploadRFQFile(file);
       
-      // Set RFQ ID in context
+      // Set RFQ ID and next step in context
       setRfqId(rfqId);
+      setCurrentStep(2); // Move to step 2 (Review Requirements)
       
       // Navigate to review page
       toast({

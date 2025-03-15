@@ -2,7 +2,7 @@ import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { RfqProvider } from "./context/rfq-context";
+import { RfqProvider, useRfq } from "./context/rfq-context";
 import Layout from "./components/layout";
 import NotFound from "@/pages/not-found";
 import UploadRfq from "@/pages/upload-rfq";
@@ -11,33 +11,41 @@ import MatchSuppliers from "@/pages/match-suppliers";
 import ScoreResults from "@/pages/score-results";
 import SendProposals from "@/pages/send-proposals";
 
-function Router() {
+// Separate RouterContent to use context hooks
+function RouterContent() {
   const [location] = useLocation();
+  const { currentStep, setCurrentStep } = useRfq();
   
-  // Get current step from URL or default to 1
+  // Get current step from URL and update context if needed
   const currentPath = location.split('/')[1] || '';
   
-  let currentStep = 1;
+  // Determine step based on URL path
+  let urlStep = 1;
   
   switch (currentPath) {
     case '':
     case 'upload':
-      currentStep = 1;
+      urlStep = 1;
       break;
     case 'review':
-      currentStep = 2;
+      urlStep = 2;
       break;
     case 'match':
-      currentStep = 3;
+      urlStep = 3;
       break;
     case 'score':
-      currentStep = 4;
+      urlStep = 4;
       break;
     case 'proposals':
-      currentStep = 5;
+      urlStep = 5;
       break;
     default:
-      currentStep = 1;
+      urlStep = 1;
+  }
+  
+  // Update context if URL step is different
+  if (urlStep !== currentStep) {
+    setCurrentStep(urlStep);
   }
   
   return (
@@ -55,11 +63,12 @@ function Router() {
   );
 }
 
+// Main App wrapper that provides context
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RfqProvider>
-        <Router />
+        <RouterContent />
         <Toaster />
       </RfqProvider>
     </QueryClientProvider>
