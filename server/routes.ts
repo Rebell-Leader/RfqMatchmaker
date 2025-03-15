@@ -47,11 +47,12 @@ const PYTHON_BACKEND_URL = "http://localhost:8000";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up proxy middleware for Python backend
-  app.use('/api-python', createProxyMiddleware({
+  app.use('/api-python/api', createProxyMiddleware({
     target: PYTHON_BACKEND_URL,
     changeOrigin: true,
-    // We're removing the pathRewrite to let the full path reach the Python backend
-    // This works because the client sends /api-python/rfqs/upload and we want this to go to /api/rfqs/upload
+    pathRewrite: {
+      '^/api-python/api': '/api' // Rewrite path from /api-python/api to /api
+    },
     logLevel: 'debug',
     onProxyReq: (proxyReq, req, res) => {
       log(`Proxying request to Python backend: ${req.method} ${req.url}`, "proxy");
