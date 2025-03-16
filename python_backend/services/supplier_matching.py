@@ -3,14 +3,21 @@ Supplier matching service for RFQ processing platform.
 
 This module provides functions to match suppliers with RFQ requirements
 based on various criteria including price, quality, and delivery time.
+It now includes semantic search capabilities using vector embeddings.
 """
 
 import re
+import logging
 from typing import List, Dict, Any, Tuple, Optional
 import json
 
 from ..models.db_storage import DatabaseStorage
 from ..models.schemas import SupplierMatch, Product, Supplier, ExtractedRequirement
+from .vector_service import vector_service
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize database storage
 db_storage = DatabaseStorage()
@@ -425,17 +432,17 @@ async def calculate_price_score(product: Product, all_products: List[Product], c
     return max(0, min(100, price_score))
 
 async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
-    """Match suppliers based on RFQ requirements"""
+    """Match suppliers based on RFQ requirements with semantic search capabilities"""
     try:
         # Get RFQ data
         rfq = await db_storage.get_rfq_by_id(rfq_id)
         if not rfq:
-            print(f"RFQ with ID {rfq_id} not found")
+            logger.error(f"RFQ with ID {rfq_id} not found")
             return []
         
         requirements = rfq.extractedRequirements
         if not requirements:
-            print(f"No requirements found for RFQ {rfq_id}")
+            logger.error(f"No requirements found for RFQ {rfq_id}")
             return []
         
         # Convert requirements to object if stored as JSON string
@@ -443,37 +450,176 @@ async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
             try:
                 requirements = json.loads(requirements)
             except:
-                print(f"Failed to parse requirements for RFQ {rfq_id}")
+                logger.error(f"Failed to parse requirements for RFQ {rfq_id}")
                 return []
         
         # Get categories from requirements
         categories = requirements.get("categories", []) if isinstance(requirements, dict) else requirements.categories
         if not categories:
-            print(f"No categories found for RFQ {rfq_id}")
+            logger.error(f"No categories found for RFQ {rfq_id}")
             return []
         
         match_results = []
+        use_vector_search = True  # Flag to control whether to use vector search
         
         for category in categories:
-            # Get all products in this category
-            products = await db_storage.get_products_by_category(category)
+            # Step 1: Index all products in vector database for semantic search
+            all_products = await db_storage.get_products_by_category(category)
             
-            if not products:
-                print(f"No products found for category {category}")
+            if not all_products:
+                logger.warning(f"No products found for category {category}")
                 continue
             
-            # For each product, evaluate the match
-            for product in products:
+            # Convert products to dict format for vector indexing
+            products_for_indexing = []
+            for product in all_products:
+                if hasattr(product, "to_dict"):
+                    product_dict = product.to_dict()
+                else:
+                    # Create dictionary manually
+                    product_dict = {
+                        "id": product.id,
+                        "name": product.name,
+                        "category": product.category,
+                        "supplierId": product.supplierId,
+                        "description": product.description,
+                        "price": product.price,
+                        "specifications": product.specifications,
+                        "warranty": getattr(product, "warranty", "")
+                    }
+                products_for_indexing.append(product_dict)
+            
+            # Index products in vector database
+            if use_vector_search:
+                try:
+                    indexed_count = vector_service.index_all_products(products_for_indexing)
+                    logger.info(f"Indexed {indexed_count} products for category {category}")
+                    
+                    # Step 2: Use semantic search to find relevant products
+                    semantic_results = vector_service.search_rfq_requirements(
+                        requirements if isinstance(requirements, dict) else requirements.dict(),
+                        category,
+                        limit=20  # Get top 20 matches from semantic search
+                    )
+                    
+                    if semantic_results:
+                        logger.info(f"Found {len(semantic_results)} semantic matches for category {category}")
+                        
+                        # Step 3: Process semantic search results
+                        for result in semantic_results:
+                            # Get product and supplier details from database
+                            product_id = result.get("product_id")
+                            if product_id is None:
+                                logger.warning("Missing product_id in search result")
+                                continue
+                                
+                            try:
+                                # Convert to int if not already
+                                if not isinstance(product_id, int):
+                                    product_id = int(product_id)
+                                
+                                product = await db_storage.get_product_by_id(product_id)
+                                if not product:
+                                    logger.warning(f"Product not found for id {product_id}")
+                                    continue
+                                    
+                                supplier = await db_storage.get_supplier_by_id(product.supplierId)
+                                if not supplier:
+                                    logger.warning(f"Supplier not found for id {product.supplierId}")
+                                    continue
+                                
+                                # Get semantic similarity score
+                                semantic_score = result.get("score", 0.5) * 100
+                                
+                                # Create ExtractedRequirement instance if needed
+                                req_for_scoring = requirements
+                                if isinstance(requirements, dict) and not isinstance(requirements, ExtractedRequirement):
+                                    from ..models.schemas import ExtractedRequirement
+                                    # Create a compatible object for scoring
+                                    req_for_scoring = ExtractedRequirement(**requirements)
+                                
+                                # Calculate additional match details using traditional approach
+                                match_score, match_details = calculate_match_score(product, supplier, req_for_scoring, category)
+                            except (ValueError, TypeError) as e:
+                                logger.error(f"Error processing search result: {str(e)}")
+                                continue
+                            
+                            # Blend semantic score with traditional score
+                            # Give semantic score 30% weight
+                            blended_score = (match_score * 0.7) + (semantic_score * 0.3)
+                            
+                            # Calculate total price based on quantity
+                            try:
+                                quantity = await get_quantity_for_category(req_for_scoring, category)
+                                total_price = product.price * quantity
+                            except Exception as e:
+                                logger.error(f"Error calculating semantic match quantity: {str(e)}")
+                                quantity = 1
+                                total_price = product.price
+                            
+                            # Create a supplier match object with blended score
+                            supplier_match = SupplierMatch(
+                                supplier=supplier,
+                                product=product,
+                                matchScore=blended_score,
+                                matchDetails={
+                                    "price": match_details["price"],
+                                    "quality": match_details["quality"],
+                                    "delivery": match_details["delivery"],
+                                    "semantic": semantic_score
+                                },
+                                totalPrice=total_price
+                            )
+                            
+                            match_results.append(supplier_match)
+                            
+                            # Create a proposal in storage
+                            await db_storage.create_proposal({
+                                "rfqId": rfq_id,
+                                "productId": product.id,
+                                "score": blended_score,
+                                "priceScore": match_details["price"],
+                                "qualityScore": match_details["quality"],
+                                "deliveryScore": match_details["delivery"],
+                                "emailContent": None
+                            })
+                        
+                        # If we got semantic results, skip traditional matching for this category
+                        continue
+                        
+                except Exception as e:
+                    logger.error(f"Error in vector search for category {category}: {str(e)}")
+                    # Fall back to traditional matching if vector search fails
+                    logger.info("Falling back to traditional matching")
+            
+            # Traditional matching approach (used as fallback or if vector search is disabled)
+            logger.info(f"Using traditional matching for category {category}")
+            for product in all_products:
                 # Get supplier details
                 supplier = await db_storage.get_supplier_by_id(product.supplierId)
                 
                 if supplier:
-                    # Calculate match score based on RFQ criteria
-                    match_score, match_details = calculate_match_score(product, supplier, requirements, category)
-                    
-                    # Calculate total price based on quantity
-                    quantity = await get_quantity_for_category(requirements, category)
-                    total_price = product.price * quantity
+                    try:
+                        # Create ExtractedRequirement instance if needed
+                        req_for_scoring = requirements
+                        if isinstance(requirements, dict) and not isinstance(requirements, ExtractedRequirement):
+                            from ..models.schemas import ExtractedRequirement
+                            # Create a compatible object for scoring
+                            req_for_scoring = ExtractedRequirement(**requirements)
+                        
+                        # Calculate match score based on RFQ criteria
+                        match_score, match_details = calculate_match_score(product, supplier, req_for_scoring, category)
+                        
+                        # Calculate total price based on quantity
+                        quantity = await get_quantity_for_category(req_for_scoring, category)
+                        total_price = product.price * quantity
+                    except Exception as e:
+                        logger.error(f"Error in traditional matching: {str(e)}")
+                        # Use default values if calculation fails
+                        match_score = 50.0
+                        match_details = {"price": 50.0, "quality": 50.0, "delivery": 50.0}
+                        quantity = 1
+                        total_price = product.price
                     
                     # Create a supplier match object
                     supplier_match = SupplierMatch(
@@ -504,8 +650,9 @@ async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
         # Sort match results by match score (descending)
         match_results.sort(key=lambda x: x.matchScore, reverse=True)
         
+        logger.info(f"Total supplier matches for RFQ {rfq_id}: {len(match_results)}")
         return match_results
     
     except Exception as e:
-        print(f"Error matching suppliers for RFQ {rfq_id}: {str(e)}")
+        logger.error(f"Error matching suppliers for RFQ {rfq_id}: {str(e)}")
         return []

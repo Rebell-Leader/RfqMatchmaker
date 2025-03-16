@@ -28,14 +28,30 @@ class VectorService:
     
     def __init__(self):
         """Initialize the vector service with Qdrant client and OpenAI client."""
-        # Initialize clients
-        self.openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        
+        # Check if OpenAI API key is available
+        self.openai_api_key = os.environ.get("OPENAI_API_KEY")
+        if self.openai_api_key:
+            try:
+                self.openai_client = OpenAI(api_key=self.openai_api_key)
+                logger.info("OpenAI client initialized successfully")
+                self.use_openai = True
+            except Exception as e:
+                logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+                self.use_openai = False
+        else:
+            logger.warning("No OpenAI API key found, using fallback embedding method")
+            self.use_openai = False
+            
         # Use in-memory Qdrant for development if URL not provided
         qdrant_url = os.environ.get("QDRANT_URL")
         if qdrant_url:
-            self.qdrant_client = QdrantClient(url=qdrant_url)
-            logger.info(f"Connected to Qdrant at {qdrant_url}")
+            try:
+                self.qdrant_client = QdrantClient(url=qdrant_url)
+                logger.info(f"Connected to Qdrant at {qdrant_url}")
+            except Exception as e:
+                logger.error(f"Failed to connect to Qdrant at {qdrant_url}: {str(e)}")
+                logger.info("Falling back to in-memory Qdrant database")
+                self.qdrant_client = QdrantClient(":memory:")
         else:
             self.qdrant_client = QdrantClient(":memory:")
             logger.info("Using in-memory Qdrant database")
@@ -56,17 +72,60 @@ class VectorService:
             logger.info(f"Created Qdrant collection: {COLLECTION_NAME}")
     
     def get_embedding(self, text: str) -> List[float]:
-        """Get embeddings for the given text using OpenAI."""
-        try:
-            response = self.openai_client.embeddings.create(
-                model="text-embedding-ada-002",
-                input=text
-            )
-            return response.data[0].embedding
-        except Exception as e:
-            logger.error(f"Error creating embedding: {str(e)}")
-            # Return a zero vector as fallback
-            return [0.0] * EMBEDDING_DIM
+        """Get embeddings for the given text using OpenAI or fallback method."""
+        # Check if OpenAI is available
+        if self.use_openai:
+            try:
+                response = self.openai_client.embeddings.create(
+                    model="text-embedding-ada-002",
+                    input=text
+                )
+                return response.data[0].embedding
+            except Exception as e:
+                logger.error(f"Error creating embedding with OpenAI: {str(e)}")
+                # Fall back to the basic embedding method
+        
+        # Fallback embedding method: TF-IDF style simple embedding
+        # This is a very simplified version that creates deterministic embeddings
+        # based on word frequencies - not as good as real embeddings but works for demo
+        return self.create_simple_embedding(text)
+    
+    def create_simple_embedding(self, text: str) -> List[float]:
+        """
+        Create a simple deterministic embedding based on word frequencies.
+        This is a fallback method when OpenAI API is not available.
+        """
+        # Convert to lowercase and remove punctuation
+        text = text.lower()
+        for char in ',.!?;:()[]{}"\'':
+            text = text.replace(char, ' ')
+        
+        # Split into words
+        words = text.split()
+        
+        # Calculate word frequencies
+        word_freq = {}
+        for word in words:
+            if word not in word_freq:
+                word_freq[word] = 0
+            word_freq[word] += 1
+        
+        # Generate a hash for each word and create a sparse embedding
+        # We'll use a deterministic hash function to assign each word to a dimension
+        embedding = [0.0] * EMBEDDING_DIM
+        
+        for word, freq in word_freq.items():
+            # Simple hash function to map words to dimensions
+            dimension = hash(word) % EMBEDDING_DIM
+            # Use square root of frequency as the value (common in TF-IDF)
+            embedding[dimension] += (freq ** 0.5)
+        
+        # Normalize the embedding to have unit length (cosine similarity)
+        magnitude = sum(x**2 for x in embedding) ** 0.5
+        if magnitude > 0:
+            embedding = [x/magnitude for x in embedding]
+        
+        return embedding
     
     def index_product(self, product_id: int, product_data: Dict[str, Any]) -> bool:
         """
