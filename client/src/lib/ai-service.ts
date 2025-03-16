@@ -1,15 +1,14 @@
 import { apiRequest } from "./queryClient";
 import { ExtractedRequirement, EmailTemplate } from "@shared/schema";
 
-// Use Python backend API endpoints
-// We need to use "/api-python/api" because:
-// 1. "/api-python" is the proxy path in Express
-// 2. "/api" is the prefix in the Python FastAPI app
-const PYTHON_API_PREFIX = "/api-python/api";
-
+/**
+ * Extract structured requirements from RFQ content
+ * Uses Node.js backend which proxies to Python backend's AI service
+ */
 export async function extractRequirementsFromRFQ(fileContent: string): Promise<ExtractedRequirement> {
   try {
-    const response = await apiRequest("POST", `${PYTHON_API_PREFIX}/rfqs`, { 
+    // Using the Node.js backend which proxies to Python
+    const response = await apiRequest("POST", "/api/rfqs", { 
       title: "Extracted RFQ", 
       specifications: fileContent 
     });
@@ -22,62 +21,43 @@ export async function extractRequirementsFromRFQ(fileContent: string): Promise<E
   }
 }
 
+/**
+ * Upload an RFQ file for processing
+ * Uses Node.js backend which proxies to Python backend
+ */
 export async function uploadRFQFile(file: File): Promise<number> {
   try {
-    console.log("Attempting to upload file to Python backend...");
+    console.log("Uploading file:", file.name, file.type, file.size);
+    
     const formData = new FormData();
     formData.append("file", file);
     
-    // For debugging
-    console.log("File being uploaded:", file.name, file.type, file.size);
+    // Use Node.js backend which proxies to Python backend
+    const response = await fetch("/api/rfqs/upload", {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
     
-    try {
-      // Try Python backend first
-      const response = await fetch(`${PYTHON_API_PREFIX}/rfqs/upload`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      
-      console.log("Python upload response status:", response.status);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to upload RFQ to Python backend: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log("Python backend upload success:", data);
-      return data.id;
-    } catch (pythonError) {
-      console.error("Python backend upload failed:", pythonError);
-      console.log("Falling back to Node.js backend...");
-      
-      // Fallback to Node.js backend
-      const nodeFormData = new FormData();
-      nodeFormData.append("file", file);
-      
-      const nodeResponse = await fetch("/api/rfqs/upload", {
-        method: "POST",
-        body: nodeFormData,
-        credentials: "include",
-      });
-      
-      console.log("Node.js upload response status:", nodeResponse.status);
-      
-      if (!nodeResponse.ok) {
-        throw new Error(`Failed to upload RFQ to Node.js backend: ${nodeResponse.statusText}`);
-      }
-      
-      const nodeData = await nodeResponse.json();
-      console.log("Node.js backend upload success:", nodeData);
-      return nodeData.id;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Upload error:", errorText);
+      throw new Error(`Failed to upload RFQ: ${response.statusText}`);
     }
+    
+    const data = await response.json();
+    console.log("Upload success:", data);
+    return data.id;
   } catch (error) {
-    console.error("Error uploading RFQ file (both backends failed):", error);
+    console.error("Error uploading RFQ file:", error);
     throw new Error("Failed to upload RFQ file. Please try again later.");
   }
 }
 
+/**
+ * Create an RFQ manually with text input
+ * Uses Node.js backend which proxies to Python backend
+ */
 export async function createManualRFQ(
   title: string, 
   description: string, 
@@ -86,57 +66,32 @@ export async function createManualRFQ(
   try {
     console.log("Creating manual RFQ with:", { title, description, specifications });
     
-    // First, try the Python backend
-    try {
-      // Add full debug info for the request to see what's happening
-      console.log("Attempting Python backend at:", `${PYTHON_API_PREFIX}/rfqs`);
-      console.log("With data:", { title, description, specifications });
-      
-      // Make direct fetch call for better debugging
-      const response = await fetch(`${PYTHON_API_PREFIX}/rfqs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, specifications }),
-        credentials: "include"
-      });
-      
-      console.log("Python backend response status:", response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Python backend error:", errorText);
-        throw new Error(`Python backend returned ${response.status}: ${errorText}`);
-      }
-      
-      const data = await response.json();
-      console.log("Python backend RFQ creation response:", data);
-      return data.id;
-    } catch (pythonError) {
-      console.error("Python backend RFQ creation failed:", pythonError);
-      console.log("Falling back to Node backend...");
-      
-      // Fallback to the Node backend if Python fails
-      const nodeResponse = await apiRequest("POST", "/api/rfqs", { 
-        title, 
-        description, 
-        specifications 
-      });
-      
-      const nodeData = await nodeResponse.json();
-      console.log("Node backend RFQ creation response:", nodeData);
-      return nodeData.id;
-    }
+    // Use Node.js backend which proxies to Python backend
+    const response = await apiRequest("POST", "/api/rfqs", { 
+      title, 
+      description, 
+      specifications 
+    });
+    
+    const data = await response.json();
+    console.log("RFQ creation response:", data);
+    return data.id;
   } catch (error) {
-    console.error("Error creating manual RFQ (both backends failed):", error);
+    console.error("Error creating manual RFQ:", error);
     throw new Error("Failed to create RFQ. Please try again later.");
   }
 }
 
+/**
+ * Generate an email proposal for a selected supplier
+ * Uses Node.js backend which proxies to Python backend
+ */
 export async function generateEmailProposal(proposalId: number): Promise<EmailTemplate> {
   try {
+    // Use Node.js backend which proxies to Python backend
     const response = await apiRequest(
       "POST", 
-      `${PYTHON_API_PREFIX}/proposals/${proposalId}/generate-email`,
+      `/api/proposals/${proposalId}/generate-email`,
       {}
     );
     
