@@ -88,11 +88,25 @@ export async function createManualRFQ(
     
     // First, try the Python backend
     try {
-      const response = await apiRequest("POST", `${PYTHON_API_PREFIX}/rfqs`, { 
-        title, 
-        description, 
-        specifications 
+      // Add full debug info for the request to see what's happening
+      console.log("Attempting Python backend at:", `${PYTHON_API_PREFIX}/rfqs`);
+      console.log("With data:", { title, description, specifications });
+      
+      // Make direct fetch call for better debugging
+      const response = await fetch(`${PYTHON_API_PREFIX}/rfqs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description, specifications }),
+        credentials: "include"
       });
+      
+      console.log("Python backend response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Python backend error:", errorText);
+        throw new Error(`Python backend returned ${response.status}: ${errorText}`);
+      }
       
       const data = await response.json();
       console.log("Python backend RFQ creation response:", data);

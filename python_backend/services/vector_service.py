@@ -33,17 +33,19 @@ class VectorService:
         self.openai_client = None
         self.use_openai = False
         
-        # Using incorrect API key for OpenAI (using Featherless API key)
-        # This is causing the 401 error in the logs
-        # Fix: We need to use the proper OpenAI API key from environment
+        # Properly check for OpenAI API key (not Featherless AI key)
+        # The OPENAI_API_KEY is separate from FEATHERLESS_API_KEY
         if self.openai_api_key:
             try:
-                # Ensure we're not using the Featherless API key for OpenAI
+                # Check if we're using the Featherless AI key by mistake
                 if self.openai_api_key.startswith("rc_"):
                     logger.warning("Invalid OpenAI API key format detected (starts with 'rc_'). This appears to be a Featherless AI key.")
+                    logger.warning("Please set a separate OPENAI_API_KEY environment variable for vector embeddings.")
                     self.use_openai = False
                 else:
+                    # Only initialize OpenAI client if we have a proper key
                     self.openai_client = OpenAI(api_key=self.openai_api_key)
+                    
                     # Test the connection by making a small request
                     try:
                         _ = self.openai_client.embeddings.create(
