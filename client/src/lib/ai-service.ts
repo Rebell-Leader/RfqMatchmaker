@@ -24,30 +24,57 @@ export async function extractRequirementsFromRFQ(fileContent: string): Promise<E
 
 export async function uploadRFQFile(file: File): Promise<number> {
   try {
-    console.log("Uploading file to Python backend...");
+    console.log("Attempting to upload file to Python backend...");
     const formData = new FormData();
     formData.append("file", file);
     
     // For debugging
     console.log("File being uploaded:", file.name, file.type, file.size);
     
-    const response = await fetch(`${PYTHON_API_PREFIX}/rfqs/upload`, {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    });
-    
-    console.log("Upload response status:", response.status);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to upload RFQ: ${response.statusText}`);
+    try {
+      // Try Python backend first
+      const response = await fetch(`${PYTHON_API_PREFIX}/rfqs/upload`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      console.log("Python upload response status:", response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to upload RFQ to Python backend: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log("Python backend upload success:", data);
+      return data.id;
+    } catch (pythonError) {
+      console.error("Python backend upload failed:", pythonError);
+      console.log("Falling back to Node.js backend...");
+      
+      // Fallback to Node.js backend
+      const nodeFormData = new FormData();
+      nodeFormData.append("file", file);
+      
+      const nodeResponse = await fetch("/api/rfqs/upload", {
+        method: "POST",
+        body: nodeFormData,
+        credentials: "include",
+      });
+      
+      console.log("Node.js upload response status:", nodeResponse.status);
+      
+      if (!nodeResponse.ok) {
+        throw new Error(`Failed to upload RFQ to Node.js backend: ${nodeResponse.statusText}`);
+      }
+      
+      const nodeData = await nodeResponse.json();
+      console.log("Node.js backend upload success:", nodeData);
+      return nodeData.id;
     }
-    
-    const data = await response.json();
-    return data.id;
   } catch (error) {
-    console.error("Error uploading RFQ file:", error);
-    throw new Error("Failed to upload RFQ file");
+    console.error("Error uploading RFQ file (both backends failed):", error);
+    throw new Error("Failed to upload RFQ file. Please try again later.");
   }
 }
 
@@ -57,17 +84,37 @@ export async function createManualRFQ(
   specifications: string
 ): Promise<number> {
   try {
-    const response = await apiRequest("POST", `${PYTHON_API_PREFIX}/rfqs`, { 
-      title, 
-      description, 
-      specifications 
-    });
+    console.log("Creating manual RFQ with:", { title, description, specifications });
     
-    const data = await response.json();
-    return data.id;
+    // First, try the Python backend
+    try {
+      const response = await apiRequest("POST", `${PYTHON_API_PREFIX}/rfqs`, { 
+        title, 
+        description, 
+        specifications 
+      });
+      
+      const data = await response.json();
+      console.log("Python backend RFQ creation response:", data);
+      return data.id;
+    } catch (pythonError) {
+      console.error("Python backend RFQ creation failed:", pythonError);
+      console.log("Falling back to Node backend...");
+      
+      // Fallback to the Node backend if Python fails
+      const nodeResponse = await apiRequest("POST", "/api/rfqs", { 
+        title, 
+        description, 
+        specifications 
+      });
+      
+      const nodeData = await nodeResponse.json();
+      console.log("Node backend RFQ creation response:", nodeData);
+      return nodeData.id;
+    }
   } catch (error) {
-    console.error("Error creating manual RFQ:", error);
-    throw new Error("Failed to create RFQ");
+    console.error("Error creating manual RFQ (both backends failed):", error);
+    throw new Error("Failed to create RFQ. Please try again later.");
   }
 }
 
