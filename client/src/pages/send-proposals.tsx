@@ -11,6 +11,8 @@ import { useDemoMode } from "@/context/demo-context";
 import { getRFQById } from "@/lib/supplier-service";
 import { generateEmailProposal } from "@/lib/ai-service";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmailEditor } from "@/components/email-editor";
+import { EmailTemplate } from "@shared/schema";
 
 export default function SendProposals() {
   const { id } = useParams<{ id: string }>();
@@ -223,11 +225,53 @@ export default function SendProposals() {
     });
   };
   
-  const handleDownloadAsPDF = () => {
-    toast({
-      title: "PDF Downloaded",
-      description: "Your email proposal has been downloaded as a PDF.",
-      variant: "default",
+  const handleDownloadAsPDF = async () => {
+    try {
+      // Generate PDF from email data
+      const pdfBlob = await generatePdfFromEmail({
+        to: emailData.to,
+        cc: emailData.cc || undefined,
+        subject: emailData.subject,
+        body: emailData.body
+      });
+      
+      // Create a download link
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `proposal-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "PDF Downloaded",
+        description: "Your email proposal has been downloaded as a PDF.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Error downloading PDF",
+        description: "There was an error generating the PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleUpdateEmail = (updatedEmail: EmailTemplate) => {
+    // Update the email template in context
+    setEmailTemplate(updatedEmail);
+    
+    // Also update local state
+    setEmailData({
+      to: updatedEmail.to,
+      cc: updatedEmail.cc || "",
+      subject: updatedEmail.subject,
+      body: updatedEmail.body
     });
   };
   
@@ -362,156 +406,20 @@ export default function SendProposals() {
             </div>
           </div>
           
-          {/* Email Preview */}
+          {/* Email Editor */}
           <div className="mb-6">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-lg font-medium">Email Proposal Preview</h3>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={handleCopyToClipboard}
-                className="text-primary hover:text-primary-dark flex items-center text-sm"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-                Copy to clipboard
-              </Button>
-            </div>
-            
-            <div className="border border-gray-200 rounded-lg">
-              {/* Email Header */}
-              <div className="border-b border-gray-200 p-4">
-                <div className="mb-3">
-                  <Label htmlFor="to" className="block text-sm font-medium text-gray-700 mb-1">To:</Label>
-                  <Input 
-                    type="text" 
-                    id="to"
-                    name="to"
-                    value={emailData.to} 
-                    onChange={handleEmailChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" 
-                  />
-                </div>
-                <div className="mb-3">
-                  <Label htmlFor="cc" className="block text-sm font-medium text-gray-700 mb-1">Cc:</Label>
-                  <Input 
-                    type="text" 
-                    id="cc"
-                    name="cc"
-                    value={emailData.cc} 
-                    onChange={handleEmailChange}
-                    placeholder="Add Cc recipients" 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" 
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">Subject:</Label>
-                  <Input 
-                    type="text" 
-                    id="subject"
-                    name="subject"
-                    value={emailData.subject} 
-                    onChange={handleEmailChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" 
-                  />
-                </div>
-              </div>
-              
-              {/* Email Body */}
-              <div className="p-4">
-                <Label htmlFor="body" className="block text-sm font-medium text-gray-700 mb-2">Message:</Label>
-                <Textarea 
-                  id="body"
-                  name="body"
-                  ref={textAreaRef}
-                  value={emailData.body} 
-                  onChange={handleEmailChange}
-                  rows={12} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" 
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Actions */}
-          <div className="mb-6">
-            <h3 className="text-lg font-medium mb-3">Email Actions</h3>
-            <div className="flex flex-col md:flex-row gap-4">
-              <Button 
-                className="flex-1 bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark flex items-center justify-center"
-                onClick={handleSendEmail}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mr-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                  />
-                </svg>
-                Send Email
-              </Button>
-              <Button 
-                variant="outline"
-                className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-50 flex items-center justify-center"
-                onClick={handleSaveAsDraft}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mr-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-                  />
-                </svg>
-                Save as Draft
-              </Button>
-              <Button 
-                variant="outline"
-                className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-50 flex items-center justify-center"
-                onClick={handleDownloadAsPDF}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mr-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-                Download as PDF
-              </Button>
-            </div>
+            <h3 className="text-lg font-medium mb-3">Email Proposal Editor</h3>
+            {emailData && (
+              <EmailEditor 
+                emailTemplate={{
+                  to: emailData.to,
+                  cc: emailData.cc || undefined,
+                  subject: emailData.subject,
+                  body: emailData.body
+                }}
+                onSave={handleUpdateEmail}
+              />
+            )}
           </div>
           
           <div className="flex justify-between mt-8">
