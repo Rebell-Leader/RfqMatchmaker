@@ -88,28 +88,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
   // API Routes
   
-  // Get all RFQs
+  // Get all RFQs - Proxy to Python backend
   app.get("/api/rfqs", async (_req: Request, res: Response) => {
     try {
-      const rfqs = await storage.getAllRfqs();
-      res.json(rfqs);
+      log("Forwarding RFQ list request to Python backend", "express");
+      
+      try {
+        // Forward to Python backend
+        const pythonResponse = await fetch(`${PYTHON_BACKEND_URL}/api/rfqs`);
+        
+        if (!pythonResponse.ok) {
+          const errorText = await pythonResponse.text();
+          log(`Python backend error: ${errorText}`, "express");
+          throw new Error(`Python backend returned ${pythonResponse.status}: ${errorText}`);
+        }
+        
+        const responseData = await pythonResponse.json();
+        log(`Python backend response: RFQs list retrieved`, "express");
+        
+        return res.json(responseData);
+      } catch (error) {
+        log(`Error forwarding to Python backend: ${error}`, "express");
+        throw error;
+      }
     } catch (error) {
       console.error("Error fetching RFQs:", error);
       res.status(500).json({ error: "Failed to fetch RFQs" });
     }
   });
   
-  // Get RFQ by ID
+  // Get RFQ by ID - Proxy to Python backend
   app.get("/api/rfqs/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const rfq = await storage.getRfqById(id);
+      log(`Forwarding RFQ fetch request to Python backend for ID ${id}`, "express");
       
-      if (!rfq) {
-        return res.status(404).json({ error: "RFQ not found" });
+      try {
+        // Forward to Python backend
+        const pythonResponse = await fetch(`${PYTHON_BACKEND_URL}/api/rfqs/${id}`);
+        
+        if (!pythonResponse.ok) {
+          const errorText = await pythonResponse.text();
+          log(`Python backend error: ${errorText}`, "express");
+          
+          // Return the same status code from the Python backend
+          return res.status(pythonResponse.status).json({ error: `RFQ not found` });
+        }
+        
+        const responseData = await pythonResponse.json();
+        log(`Python backend response: RFQ ${id} retrieved`, "express");
+        
+        return res.json(responseData);
+      } catch (error) {
+        log(`Error forwarding to Python backend: ${error}`, "express");
+        throw error;
       }
-      
-      res.json(rfq);
     } catch (error) {
       console.error("Error fetching RFQ:", error);
       res.status(500).json({ error: "Failed to fetch RFQ" });
@@ -213,18 +246,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get all suppliers
+  // Get all suppliers - Proxy to Python backend
   app.get("/api/suppliers", async (_req: Request, res: Response) => {
     try {
-      const suppliers = await storage.getAllSuppliers();
-      res.json(suppliers);
+      log("Forwarding supplier list request to Python backend", "express");
+      
+      try {
+        // Forward to Python backend
+        const pythonResponse = await fetch(`${PYTHON_BACKEND_URL}/api/suppliers`);
+        
+        if (!pythonResponse.ok) {
+          const errorText = await pythonResponse.text();
+          log(`Python backend error: ${errorText}`, "express");
+          throw new Error(`Python backend returned ${pythonResponse.status}: ${errorText}`);
+        }
+        
+        const responseData = await pythonResponse.json();
+        log(`Python backend response: Suppliers list retrieved`, "express");
+        
+        return res.json(responseData);
+      } catch (error) {
+        log(`Error forwarding to Python backend: ${error}`, "express");
+        throw error;
+      }
     } catch (error) {
       console.error("Error fetching suppliers:", error);
       res.status(500).json({ error: "Failed to fetch suppliers" });
     }
   });
   
-  // Get products by category
+  // Get products by category - Proxy to Python backend
   app.get("/api/products", async (req: Request, res: Response) => {
     try {
       const category = req.query.category as string;
@@ -233,8 +284,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Category parameter is required" });
       }
       
-      const products = await storage.getProductsByCategory(category);
-      res.json(products);
+      log(`Forwarding products request to Python backend for category ${category}`, "express");
+      
+      try {
+        // Forward to Python backend
+        const pythonResponse = await fetch(`${PYTHON_BACKEND_URL}/api/products?category=${encodeURIComponent(category)}`);
+        
+        if (!pythonResponse.ok) {
+          const errorText = await pythonResponse.text();
+          log(`Python backend error: ${errorText}`, "express");
+          throw new Error(`Python backend returned ${pythonResponse.status}: ${errorText}`);
+        }
+        
+        const responseData = await pythonResponse.json();
+        log(`Python backend response: Products for category ${category} retrieved`, "express");
+        
+        return res.json(responseData);
+      } catch (error) {
+        log(`Error forwarding to Python backend: ${error}`, "express");
+        throw error;
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
       res.status(500).json({ error: "Failed to fetch products" });
