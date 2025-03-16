@@ -1,9 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { FaBolt, FaSearch, FaChartBar, FaFileAlt } from "react-icons/fa";
+import { FaBolt, FaSearch, FaChartBar, FaFileAlt, FaLaptop } from "react-icons/fa";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { useDemoMode } from "@/context/demo-context";
 
 export default function Landing() {
   const [, navigate] = useLocation();
+  const { isDemoMode, toggleDemoMode } = useDemoMode();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
@@ -170,9 +174,31 @@ export default function Landing() {
       <section className="py-16 px-6 bg-gradient-to-r from-primary/20 to-primary/5">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-6">Try it now – Find the perfect supplier today!</h2>
-          <p className="text-xl mb-8 text-slate-700">
+          <p className="text-xl mb-6 text-slate-700">
             Upload your RFQ and let MatchPoint do the hard work for you.
           </p>
+          
+          {/* Demo Mode Toggle */}
+          <div className="flex items-center justify-center mb-8 bg-white p-4 rounded-lg shadow-sm max-w-md mx-auto">
+            <div className="flex items-center space-x-2 mr-4">
+              <FaLaptop className="text-primary" />
+              <Label htmlFor="demo-mode" className="text-base font-medium">
+                Demo Mode
+              </Label>
+            </div>
+            <Switch
+              id="demo-mode"
+              checked={isDemoMode}
+              onCheckedChange={toggleDemoMode}
+            />
+            <p className="ml-4 text-sm text-gray-500">
+              {isDemoMode 
+                ? "Using sample data for demonstration" 
+                : "Using real-time processing"
+              }
+            </p>
+          </div>
+          
           <Button 
             size="lg" 
             className="text-lg px-8 py-6"

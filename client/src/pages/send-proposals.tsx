@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useRfq } from "@/context/rfq-context";
+import { useDemoMode } from "@/context/demo-context";
 import { getRFQById } from "@/lib/supplier-service";
 import { generateEmailProposal } from "@/lib/ai-service";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +17,7 @@ export default function SendProposals() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { setRfqId, selectedMatches, emailTemplate, setEmailTemplate } = useRfq();
+  const { isDemoMode, demoRfq, demoEmailProposal, simulateProcessing } = useDemoMode();
   
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -35,6 +37,31 @@ export default function SendProposals() {
     async function fetchRfq() {
       try {
         setLoading(true);
+        
+        // If in demo mode, use demo data
+        if (isDemoMode && String(demoRfq.id) === id) {
+          // Simulate processing delay
+          setTimeout(() => {
+            setRfq(demoRfq);
+            setRequirements(demoRfq.extractedRequirements);
+            
+            // Update context
+            setRfqId(demoRfq.id);
+            
+            // If there's a recommended supplier in demo mode
+            if (selectedMatches.length > 0) {
+              const recommendedSupplier = selectedMatches.reduce((prev, current) => 
+                prev.matchScore > current.matchScore ? prev : current
+              );
+              setSelectedSupplier(recommendedSupplier);
+            }
+            
+            setLoading(false);
+          }, 1000);
+          return;
+        }
+        
+        // Otherwise fetch real data
         const rfqData = await getRFQById(Number(id));
         setRfq(rfqData);
         setRequirements(rfqData.extractedRequirements);
@@ -71,6 +98,23 @@ export default function SendProposals() {
       if (selectedSupplier && !emailTemplate) {
         try {
           setGenerating(true);
+          
+          // If in demo mode, use demo email proposal
+          if (isDemoMode) {
+            simulateProcessing(() => {
+              setEmailTemplate(demoEmailProposal);
+              setEmailData({
+                to: demoEmailProposal.to,
+                cc: demoEmailProposal.cc || "",
+                subject: demoEmailProposal.subject,
+                body: demoEmailProposal.body
+              });
+              setGenerating(false);
+            });
+            return;
+          }
+          
+          // Otherwise generate real email
           // Find proposal ID from match
           // For demo purposes, we'll use a placeholder ID
           const proposalId = 1; // In a real implementation, this would come from the database
@@ -103,7 +147,9 @@ export default function SendProposals() {
             });
           }
         } finally {
-          setGenerating(false);
+          if (!isDemoMode) {
+            setGenerating(false);
+          }
         }
       } else if (emailTemplate) {
         // Use existing email template from context
@@ -119,7 +165,7 @@ export default function SendProposals() {
     if (selectedSupplier && requirements) {
       generateEmail();
     }
-  }, [selectedSupplier, requirements, emailTemplate, setEmailTemplate, toast]);
+  }, [selectedSupplier, requirements, emailTemplate, setEmailTemplate, toast, isDemoMode, demoEmailProposal, simulateProcessing]);
   
   const handleGoBack = () => {
     navigate(`/score/${id}`);
