@@ -372,29 +372,13 @@ class VectorService:
             
             # Search
             try:
-                # The filter parameter format may vary with different versions of Qdrant client
-                # So we'll handle both scenarios
-                if filter_param:
-                    try:
-                        search_results = self.qdrant_client.search(
-                            collection_name=COLLECTION_NAME,
-                            query_vector=query_embedding,
-                            limit=limit,
-                            filter=filter_param
-                        )
-                    except TypeError as e:
-                        logger.warning(f"Filter format issue, trying to search without filter: {e}")
-                        search_results = self.qdrant_client.search(
-                            collection_name=COLLECTION_NAME,
-                            query_vector=query_embedding,
-                            limit=limit
-                        )
-                else:
-                    search_results = self.qdrant_client.search(
-                        collection_name=COLLECTION_NAME,
-                        query_vector=query_embedding,
-                        limit=limit
-                    )
+                # Search without filter parameter, Qdrant client may have compatibility issues
+                # If filtering is needed, we'll do it manually post-search
+                search_results = self.qdrant_client.search(
+                    collection_name=COLLECTION_NAME,
+                    query_vector=query_embedding,
+                    limit=limit * 3 if category else limit  # Get more results if we need to filter
+                )
                 
                 # Format results
                 results = []
@@ -402,8 +386,20 @@ class VectorService:
                     product_data = result.payload
                     product_data["score"] = result.score
                     results.append(product_data)
+                
+                # Manual filtering by category if needed
+                if category:
+                    filtered_results = []
+                    for product in results:
+                        if product.get("category", "").lower() == category.lower():
+                            filtered_results.append(product)
                     
-                return results
+                    # Only return filtered results if we found any
+                    if filtered_results:
+                        logger.info(f"Filtered results by category {category}: {len(filtered_results)} of {len(results)}")
+                        return filtered_results[:limit]  # Limit to requested number
+                
+                return results[:limit]  # Limit to requested number
             except Exception as e:
                 logger.error(f"Error performing Qdrant search: {str(e)}")
                 # Try to recreate collection if needed
