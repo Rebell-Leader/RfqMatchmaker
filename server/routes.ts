@@ -38,7 +38,7 @@ const upload = multer({
 // Initialize Featherless AI client
 const API_KEY = process.env.FEATHERLESS_API_KEY || "rc_f8cf96bf43de3fde06f99a693f4d11e32d0c68a3bf3b7cdcaf851efec169d0b8";
 const client = new OpenAI({
-  baseUrl: "https://api.featherless.ai/v1",
+  baseURL: "https://api.featherless.ai/v1", // Note: baseURL (not baseUrl) is the correct property name
   apiKey: API_KEY,
 });
 
