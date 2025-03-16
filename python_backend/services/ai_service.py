@@ -73,10 +73,67 @@ async def extract_requirements_from_rfq(content: str) -> ExtractedRequirement:
         extracted_content = response.model_dump()['choices'][0]['message']['content']
         
         try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
             parsed_content = json.loads(extracted_content)
-            return ExtractedRequirement(**parsed_content)
+            logger.info(f"Successfully parsed AI response: {parsed_content}")
+            
+            # Ensure the minimal required fields are present
+            if "categories" not in parsed_content or not parsed_content["categories"]:
+                parsed_content["categories"] = ["Laptops"]
+                
+            if "criteria" not in parsed_content or not parsed_content["criteria"]:
+                parsed_content["criteria"] = {
+                    "price": {"weight": 50},
+                    "quality": {"weight": 30},
+                    "delivery": {"weight": 20}
+                }
+                
+            # Create the ExtractedRequirement with proper error handling
+            try:
+                return ExtractedRequirement(**parsed_content)
+            except Exception as validation_error:
+                logger.error(f"Validation error with parsed content: {validation_error}")
+                
+                # Try to extract only the valid fields
+                safe_content = {
+                    "title": parsed_content.get("title", "Untitled RFQ"),
+                    "description": parsed_content.get("description", ""),
+                    "categories": parsed_content.get("categories", ["Laptops"]),
+                    "criteria": parsed_content.get("criteria", {
+                        "price": {"weight": 50},
+                        "quality": {"weight": 30},
+                        "delivery": {"weight": 20}
+                    })
+                }
+                
+                # Only add laptops/monitors if they exist and are valid
+                if "laptops" in parsed_content and isinstance(parsed_content["laptops"], dict):
+                    # Only include valid fields
+                    from ..models.schemas import LaptopRequirements
+                    try:
+                        laptop_data = LaptopRequirements(**parsed_content["laptops"])
+                        safe_content["laptops"] = laptop_data
+                    except Exception as laptop_error:
+                        logger.error(f"Could not create LaptopRequirements: {laptop_error}")
+                        
+                if "monitors" in parsed_content and isinstance(parsed_content["monitors"], dict):
+                    # Only include valid fields
+                    from ..models.schemas import MonitorRequirements
+                    try:
+                        monitor_data = MonitorRequirements(**parsed_content["monitors"])
+                        safe_content["monitors"] = monitor_data
+                    except Exception as monitor_error:
+                        logger.error(f"Could not create MonitorRequirements: {monitor_error}")
+                
+                return ExtractedRequirement(**safe_content)
+                
         except json.JSONDecodeError:
-            print(f"Error parsing AI response as JSON: {extracted_content}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error parsing AI response as JSON: {extracted_content}")
+            
             # Create default requirements
             return ExtractedRequirement(
                 title="Failed to parse RFQ",
@@ -89,8 +146,13 @@ async def extract_requirements_from_rfq(content: str) -> ExtractedRequirement:
                 }
             )
     except Exception as e:
-        print(f"Error extracting requirements from RFQ: {str(e)}")
-        # Create default requirements
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error extracting requirements from RFQ: {str(e)}")
+        logger.error(traceback.format_exc())
+        
+        # Create default requirements with safe values
         return ExtractedRequirement(
             title="Error Processing RFQ",
             description="An error occurred while processing the RFQ document",
@@ -192,16 +254,31 @@ async def generate_email_proposal(rfq: Dict[str, Any], product: Dict[str, Any], 
         return email_template
     
     except Exception as e:
-        print(f"Error generating email proposal: {str(e)}")
-        # Create a default email template
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error generating email proposal: {str(e)}")
+        logger.error(traceback.format_exc())
+        
+        # Calculate safe default values
+        total_price = 0
+        try:
+            quantity = product.get('quantity', 1)
+            price = product.get('price', 0)
+            total_price = price * quantity
+        except:
+            total_price = 0
+            
+        # Create a default email template with safe values
         return EmailTemplate(
             to=supplier.get("contactEmail", "supplier@example.com"),
             subject=f"Proposal for {rfq.get('title', 'IT Equipment')}",
             body=f"""Dear {supplier.get('name', 'Supplier')},
 
-Thank you for the opportunity to submit a proposal for {rfq.get('title', 'IT Equipment')}. We believe our {product.get('name', 'product')} is an excellent fit for your requirements.
+Thank you for the opportunity to submit a proposal for {rfq.get('title', 'IT Equipment')}. 
+We believe our {product.get('name', 'product')} is an excellent fit for your requirements.
 
-The total price for {product.get('quantity', 1)} units is ${product.get('price', 0) * product.get('quantity', 1):.2f}.
+The total price for the requested items is ${total_price:.2f}.
 
 We look forward to your favorable consideration.
 
