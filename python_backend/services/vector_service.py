@@ -372,12 +372,29 @@ class VectorService:
             
             # Search
             try:
-                search_results = self.qdrant_client.search(
-                    collection_name=COLLECTION_NAME,
-                    query_vector=query_embedding,
-                    limit=limit,
-                    filter=filter_param
-                )
+                # The filter parameter format may vary with different versions of Qdrant client
+                # So we'll handle both scenarios
+                if filter_param:
+                    try:
+                        search_results = self.qdrant_client.search(
+                            collection_name=COLLECTION_NAME,
+                            query_vector=query_embedding,
+                            limit=limit,
+                            filter=filter_param
+                        )
+                    except TypeError as e:
+                        logger.warning(f"Filter format issue, trying to search without filter: {e}")
+                        search_results = self.qdrant_client.search(
+                            collection_name=COLLECTION_NAME,
+                            query_vector=query_embedding,
+                            limit=limit
+                        )
+                else:
+                    search_results = self.qdrant_client.search(
+                        collection_name=COLLECTION_NAME,
+                        query_vector=query_embedding,
+                        limit=limit
+                    )
                 
                 # Format results
                 results = []
@@ -392,13 +409,27 @@ class VectorService:
                 # Try to recreate collection if needed
                 try:
                     self._create_collection_if_not_exists()
-                    # Retry search
-                    search_results = self.qdrant_client.search(
-                        collection_name=COLLECTION_NAME,
-                        query_vector=query_embedding,
-                        limit=limit,
-                        filter=filter_param
-                    )
+                    # Retry search with safely handling the filter
+                    if filter_param:
+                        try:
+                            search_results = self.qdrant_client.search(
+                                collection_name=COLLECTION_NAME,
+                                query_vector=query_embedding,
+                                limit=limit,
+                                filter=filter_param
+                            )
+                        except TypeError:
+                            search_results = self.qdrant_client.search(
+                                collection_name=COLLECTION_NAME,
+                                query_vector=query_embedding,
+                                limit=limit
+                            )
+                    else:
+                        search_results = self.qdrant_client.search(
+                            collection_name=COLLECTION_NAME,
+                            query_vector=query_embedding,
+                            limit=limit
+                        )
                     
                     # Format results
                     results = []
