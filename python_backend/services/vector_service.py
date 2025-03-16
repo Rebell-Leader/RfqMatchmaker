@@ -33,20 +33,37 @@ class VectorService:
         self.openai_client = None
         self.use_openai = False
         
+        # Using incorrect API key for OpenAI (using Featherless API key)
+        # This is causing the 401 error in the logs
+        # Fix: We need to use the proper OpenAI API key from environment
         if self.openai_api_key:
             try:
-                self.openai_client = OpenAI(api_key=self.openai_api_key)
-                # Test the connection by making a small request
-                try:
-                    _ = self.openai_client.embeddings.create(
-                        model="text-embedding-ada-002",
-                        input="Test connection"
-                    )
-                    logger.info("OpenAI client initialized and tested successfully")
-                    self.use_openai = True
-                except Exception as e:
-                    logger.error(f"OpenAI API connection test failed: {str(e)}")
+                # Ensure we're not using the Featherless API key for OpenAI
+                if self.openai_api_key.startswith("rc_"):
+                    logger.warning("Invalid OpenAI API key format detected (starts with 'rc_'). This appears to be a Featherless AI key.")
                     self.use_openai = False
+                else:
+                    self.openai_client = OpenAI(api_key=self.openai_api_key)
+                    # Test the connection by making a small request
+                    try:
+                        _ = self.openai_client.embeddings.create(
+                            model="text-embedding-ada-002",
+                            input="Test connection"
+                        )
+                        logger.info("OpenAI client initialized and tested successfully")
+                        self.use_openai = True
+                    except Exception as e:
+                        # More detailed error reporting
+                        error_msg = str(e)
+                        if hasattr(e, 'response'):
+                            try:
+                                error_data = e.response.json()
+                                error_msg = f"Error code: {e.response.status_code} - {error_data}"
+                            except:
+                                error_msg = f"Error code: {e.response.status_code} - {error_msg}"
+
+                        logger.error(f"OpenAI API connection test failed: {error_msg}")
+                        self.use_openai = False
             except Exception as e:
                 logger.error(f"Failed to initialize OpenAI client: {str(e)}")
                 self.use_openai = False
