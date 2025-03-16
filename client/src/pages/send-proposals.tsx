@@ -10,6 +10,7 @@ import { useRfq } from "@/context/rfq-context";
 import { useDemoMode } from "@/context/demo-context";
 import { getRFQById } from "@/lib/supplier-service";
 import { generateEmailProposal } from "@/lib/ai-service";
+import { generatePdfFromEmail } from "@/lib/pdf-generator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmailEditor } from "@/components/email-editor";
 import { EmailTemplate } from "@shared/schema";
