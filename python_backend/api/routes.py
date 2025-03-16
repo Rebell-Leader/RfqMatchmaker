@@ -12,6 +12,7 @@ from datetime import datetime
 
 from ..models.schemas import RFQResponse, SupplierMatchResponse, EmailTemplate
 from ..models.schemas import RFQUploadRequest, MatchSuppliersRequest, GenerateEmailRequest
+from ..models.schemas import ExtractedRequirement
 from ..models.db_storage import storage
 from ..services.ai_service import extract_requirements_from_rfq, generate_email_proposal
 from ..services.supplier_matching import match_suppliers_for_rfq
