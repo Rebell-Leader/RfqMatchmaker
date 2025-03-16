@@ -4,27 +4,27 @@ from typing import List, Dict, Optional, Any, Union
 
 # Equipment requirements schemas
 class LaptopRequirements(BaseModel):
-    quantity: int
-    os: str
-    processor: str
-    memory: str
-    storage: str
-    display: str
-    battery: str
-    durability: str
-    connectivity: str
-    warranty: str
+    quantity: int = 1
+    os: Optional[str] = None
+    processor: Optional[str] = None
+    memory: Optional[str] = None
+    storage: Optional[str] = None
+    display: Optional[str] = None
+    battery: Optional[str] = None
+    durability: Optional[str] = None
+    connectivity: Optional[str] = None
+    warranty: Optional[str] = None
 
 class MonitorRequirements(BaseModel):
-    quantity: int
-    screenSize: str
-    resolution: str
-    panelTech: str
-    brightness: str
-    contrastRatio: str
-    connectivity: str
-    adjustability: str
-    warranty: str
+    quantity: int = 1
+    screenSize: Optional[str] = None
+    resolution: Optional[str] = None
+    panelTech: Optional[str] = None
+    brightness: Optional[str] = None
+    contrastRatio: Optional[str] = None
+    connectivity: Optional[str] = None
+    adjustability: Optional[str] = None
+    warranty: Optional[str] = None
 
 class AwardCriteria(BaseModel):
     price: Dict[str, int] = Field(default={"weight": 50})

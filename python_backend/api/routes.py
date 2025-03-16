@@ -173,32 +173,48 @@ async def upload_rfq(file: UploadFile = File(...)):
 @router.post("/rfqs", response_model=Dict[str, Any])
 async def create_rfq(rfq_request: RFQUploadRequest):
     """Create RFQ manually with specifications"""
-    # Extract requirements using AI
-    extracted_requirements = await extract_requirements_from_rfq(rfq_request.specifications)
+    import logging
+    logger = logging.getLogger(__name__)
     
-    # Override title and description if provided
-    if rfq_request.title:
-        extracted_requirements.title = rfq_request.title
-    if rfq_request.description:
-        extracted_requirements.description = rfq_request.description
-    
-    # Create RFQ in database
-    rfq_data = {
-        "title": extracted_requirements.title,
-        "description": extracted_requirements.description or "",
-        "originalContent": rfq_request.specifications,
-        "extractedRequirements": extracted_requirements,
-        "userId": 1  # Default user ID
-    }
-    
-    rfq = await storage.create_rfq(rfq_data)
-    
-    return {
-        "id": rfq.id,
-        "title": rfq.title,
-        "description": rfq.description,
-        "extractedRequirements": rfq.extractedRequirements
-    }
+    try:
+        logger.info(f"Received manual RFQ creation request: {rfq_request}")
+        
+        # Extract requirements using AI
+        logger.info(f"Extracting requirements from specifications...")
+        extracted_requirements = await extract_requirements_from_rfq(rfq_request.specifications)
+        
+        # Override title and description if provided
+        if rfq_request.title:
+            extracted_requirements.title = rfq_request.title
+        if rfq_request.description:
+            extracted_requirements.description = rfq_request.description
+        
+        # Create RFQ in database
+        rfq_data = {
+            "title": extracted_requirements.title,
+            "description": extracted_requirements.description or "",
+            "originalContent": rfq_request.specifications,
+            "extractedRequirements": extracted_requirements,
+            "userId": 1  # Default user ID
+        }
+        
+        logger.info(f"Creating RFQ in database with data: {rfq_data}")
+        rfq = await storage.create_rfq(rfq_data)
+        
+        response_data = {
+            "id": rfq.id,
+            "title": rfq.title,
+            "description": rfq.description,
+            "extractedRequirements": rfq.extractedRequirements
+        }
+        
+        logger.info(f"RFQ created successfully with ID: {rfq.id}")
+        return response_data
+        
+    except Exception as e:
+        logger.error(f"Error creating RFQ: {str(e)}", exc_info=True)
+        # Re-raise to let FastAPI handle the error response
+        raise
 
 @router.get("/suppliers", response_model=List[Dict[str, Any]])
 async def get_suppliers():

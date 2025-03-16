@@ -119,12 +119,17 @@ export default function UploadRfq() {
     try {
       setIsUploading(true);
       
+      // Log form values for debugging
+      console.log("Submitting manual RFQ form with values:", values);
+      
       // Create manual RFQ
       const rfqId = await createManualRFQ(
         values.title,
         values.description || "",
         values.specifications
       );
+      
+      console.log("RFQ created successfully with ID:", rfqId);
       
       // Set RFQ ID and next step in context
       setRfqId(rfqId);
@@ -140,9 +145,26 @@ export default function UploadRfq() {
       navigate(`/review/${rfqId}`);
     } catch (error) {
       console.error("Error creating manual RFQ:", error);
+      
+      // More detailed error handling
+      let errorMessage = "Failed to create RFQ";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Add specific error details for common issues
+        if (error.message.includes("404")) {
+          errorMessage = "The server endpoint for creating RFQs could not be found. Please try again later.";
+        } else if (error.message.includes("500")) {
+          errorMessage = "The server encountered an error while processing your request. Please try again later.";
+        } else if (error.message.includes("Network")) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        }
+      }
+      
       toast({
         title: "Submission failed",
-        description: error instanceof Error ? error.message : "Failed to create RFQ",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

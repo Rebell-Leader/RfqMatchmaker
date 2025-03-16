@@ -46,7 +46,7 @@ const client = new OpenAI({
 const PYTHON_BACKEND_URL = "http://localhost:8000";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Set up proxy middleware for Python backend
+  // Set up proxy middleware for Python backend with better logging
   app.use('/api-python/api', createProxyMiddleware({
     target: PYTHON_BACKEND_URL,
     changeOrigin: true,
@@ -55,13 +55,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
     logLevel: 'debug',
     onProxyReq: (proxyReq, req, res) => {
-      log(`Proxying request to Python backend: ${req.method} ${req.url}`, "proxy");
+      // Enhanced logging for debugging
+      const fullPath = `${PYTHON_BACKEND_URL}/api${req.url}`;
+      log(`Proxying ${req.method} request to Python backend: ${fullPath}`, "proxy");
+      
+      // Log request body for POST/PUT requests
+      if (req.method === 'POST' || req.method === 'PUT') {
+        if (req.body) {
+          log(`Request body: ${JSON.stringify(req.body)}`, "proxy");
+        }
+      }
     },
     onProxyRes: (proxyRes, req, res) => {
       log(`Received response from Python backend: ${proxyRes.statusCode} for ${req.method} ${req.url}`, "proxy");
+      
+      // Log detailed error information for non-2xx responses
+      if (proxyRes.statusCode >= 400) {
+        let responseBody = '';
+        proxyRes.on('data', (chunk) => {
+          responseBody += chunk;
+        });
+        proxyRes.on('end', () => {
+          try {
+            log(`Python backend error response: ${responseBody}`, "proxy");
+          } catch (e) {
+            log(`Could not parse Python backend error response: ${responseBody}`, "proxy");
+          }
+        });
+      }
     },
     onError: (err, req, res) => {
-      log(`Proxy error: ${err.message}`, "proxy");
+      log(`Proxy error for ${req.method} ${req.url}: ${err.message}`, "proxy");
+      log(`Python backend URL: ${PYTHON_BACKEND_URL}`, "proxy");
       res.status(500).json({ error: "Proxy error", message: err.message });
     }
   }));
