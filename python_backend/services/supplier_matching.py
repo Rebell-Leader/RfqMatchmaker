@@ -554,7 +554,36 @@ async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
                     # Step 2: Use semantic search to find relevant products
                     # Convert requirements to proper format for search
                     search_req = req_obj
-                    search_req_dict = search_req.dict() if hasattr(search_req, "dict") else vars(search_req)
+                    
+                    # Try multiple ways to convert to dict
+                    try:
+                        if hasattr(search_req, "dict"):
+                            search_req_dict = search_req.dict()
+                        elif hasattr(search_req, "__dict__"):
+                            search_req_dict = search_req.__dict__
+                        else:
+                            # Fallback to manual conversion
+                            search_req_dict = {
+                                "title": getattr(search_req, "title", "RFQ Requirements"),
+                                "categories": getattr(search_req, "categories", [category]),
+                                "description": getattr(search_req, "description", "")
+                            }
+                            
+                            # Add category-specific requirements
+                            if category.lower() == "laptops" and hasattr(search_req, "laptops"):
+                                laptop_dict = vars(search_req.laptops) if hasattr(search_req.laptops, "__dict__") else {}
+                                search_req_dict["laptops"] = laptop_dict
+                                
+                            if category.lower() == "monitors" and hasattr(search_req, "monitors"):
+                                monitor_dict = vars(search_req.monitors) if hasattr(search_req.monitors, "__dict__") else {}
+                                search_req_dict["monitors"] = monitor_dict
+                    except Exception as e:
+                        logger.error(f"Error converting requirements to dict: {str(e)}")
+                        search_req_dict = {"categories": [category]}
+                    
+                    # Ensure search_req_dict is a regular dict, not a mapping proxy
+                    if not isinstance(search_req_dict, dict):
+                        search_req_dict = dict(search_req_dict)
                     
                     semantic_results = vector_service.search_rfq_requirements(
                         search_req_dict,

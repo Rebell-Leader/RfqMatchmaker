@@ -30,11 +30,23 @@ class VectorService:
         """Initialize the vector service with Qdrant client and OpenAI client."""
         # Check if OpenAI API key is available
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
+        self.openai_client = None
+        self.use_openai = False
+        
         if self.openai_api_key:
             try:
                 self.openai_client = OpenAI(api_key=self.openai_api_key)
-                logger.info("OpenAI client initialized successfully")
-                self.use_openai = True
+                # Test the connection by making a small request
+                try:
+                    _ = self.openai_client.embeddings.create(
+                        model="text-embedding-ada-002",
+                        input="Test connection"
+                    )
+                    logger.info("OpenAI client initialized and tested successfully")
+                    self.use_openai = True
+                except Exception as e:
+                    logger.error(f"OpenAI API connection test failed: {str(e)}")
+                    self.use_openai = False
             except Exception as e:
                 logger.error(f"Failed to initialize OpenAI client: {str(e)}")
                 self.use_openai = False
@@ -42,11 +54,19 @@ class VectorService:
             logger.warning("No OpenAI API key found, using fallback embedding method")
             self.use_openai = False
             
+        # Suggest adding an API key if not available
+        if not self.use_openai:
+            logger.warning("For better semantic search accuracy, consider adding an OPENAI_API_KEY")
+            
         # Use in-memory Qdrant for development if URL not provided
         qdrant_url = os.environ.get("QDRANT_URL")
+        self.qdrant_client = None
+        
         if qdrant_url:
             try:
                 self.qdrant_client = QdrantClient(url=qdrant_url)
+                # Test connection
+                _ = self.qdrant_client.get_collections()
                 logger.info(f"Connected to Qdrant at {qdrant_url}")
             except Exception as e:
                 logger.error(f"Failed to connect to Qdrant at {qdrant_url}: {str(e)}")
@@ -61,15 +81,26 @@ class VectorService:
     
     def _create_collection_if_not_exists(self):
         """Create the vector collection if it doesn't exist."""
-        collections = self.qdrant_client.get_collections().collections
-        collection_names = [collection.name for collection in collections]
-        
-        if COLLECTION_NAME not in collection_names:
-            self.qdrant_client.create_collection(
-                collection_name=COLLECTION_NAME,
-                vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE)
-            )
-            logger.info(f"Created Qdrant collection: {COLLECTION_NAME}")
+        if not self.qdrant_client:
+            logger.error("Qdrant client is not initialized")
+            return
+            
+        try:
+            collections = self.qdrant_client.get_collections().collections
+            collection_names = [collection.name for collection in collections]
+            
+            if COLLECTION_NAME not in collection_names:
+                self.qdrant_client.create_collection(
+                    collection_name=COLLECTION_NAME,
+                    vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE)
+                )
+                logger.info(f"Created Qdrant collection: {COLLECTION_NAME}")
+        except Exception as e:
+            logger.error(f"Error creating collection: {str(e)}")
+            # Recreate client if needed
+            if not self.qdrant_client:
+                self.qdrant_client = QdrantClient(":memory:")
+                logger.info("Recreated in-memory Qdrant client")
     
     def get_embedding(self, text: str) -> List[float]:
         """Get embeddings for the given text using OpenAI or fallback method."""
@@ -94,38 +125,79 @@ class VectorService:
         """
         Create a simple deterministic embedding based on word frequencies.
         This is a fallback method when OpenAI API is not available.
+        
+        Args:
+            text: Input text to embed
+            
+        Returns:
+            List[float]: A vector of fixed dimension that represents the text
         """
-        # Convert to lowercase and remove punctuation
-        text = text.lower()
-        for char in ',.!?;:()[]{}"\'':
-            text = text.replace(char, ' ')
-        
-        # Split into words
-        words = text.split()
-        
-        # Calculate word frequencies
-        word_freq = {}
-        for word in words:
-            if word not in word_freq:
-                word_freq[word] = 0
-            word_freq[word] += 1
-        
-        # Generate a hash for each word and create a sparse embedding
-        # We'll use a deterministic hash function to assign each word to a dimension
-        embedding = [0.0] * EMBEDDING_DIM
-        
-        for word, freq in word_freq.items():
-            # Simple hash function to map words to dimensions
-            dimension = hash(word) % EMBEDDING_DIM
-            # Use square root of frequency as the value (common in TF-IDF)
-            embedding[dimension] += (freq ** 0.5)
-        
-        # Normalize the embedding to have unit length (cosine similarity)
-        magnitude = sum(x**2 for x in embedding) ** 0.5
-        if magnitude > 0:
-            embedding = [x/magnitude for x in embedding]
-        
-        return embedding
+        try:
+            # Handle empty or None input
+            if not text or not isinstance(text, str):
+                logger.warning(f"Invalid input for embedding: {type(text)}")
+                # Return a zero vector with a small random seed to avoid identical embeddings
+                import random
+                random.seed(0 if not text else hash(str(text)))
+                embedding = [0.0] * EMBEDDING_DIM
+                # Set a few random dimensions to small values to differentiate
+                for _ in range(10):
+                    idx = random.randint(0, EMBEDDING_DIM-1)
+                    embedding[idx] = random.random() * 0.1
+                return embedding
+            
+            # Convert to lowercase and remove punctuation
+            text = text.lower()
+            for char in ',.!?;:()[]{}"\'+-*/=<>@#$%^&*_~`|\\':
+                text = text.replace(char, ' ')
+            
+            # Split into words and remove stopwords
+            words = text.split()
+            stopwords = {'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 
+                        'be', 'been', 'being', 'in', 'on', 'at', 'to', 'for', 'with', 
+                        'by', 'about', 'as', 'of', 'this', 'that', 'these', 'those'}
+            words = [word for word in words if word not in stopwords and len(word) > 1]
+            
+            # Calculate word frequencies
+            word_freq = {}
+            for word in words:
+                if word not in word_freq:
+                    word_freq[word] = 0
+                word_freq[word] += 1
+            
+            # Generate a hash for each word and create a sparse embedding
+            # We'll use a deterministic hash function to assign each word to a dimension
+            embedding = [0.0] * EMBEDDING_DIM
+            
+            # Include n-grams (pairs of consecutive words) for better semantic capture
+            if len(words) > 1:
+                bigrams = [f"{words[i]}_{words[i+1]}" for i in range(len(words)-1)]
+                for bigram in bigrams:
+                    if bigram not in word_freq:
+                        word_freq[bigram] = 0
+                    word_freq[bigram] += 0.5  # Lower weight for bigrams
+            
+            for word, freq in word_freq.items():
+                # Create multiple dimensions per word to reduce collisions
+                for i in range(3):  # Use 3 dimensions per word
+                    # Simple hash function to map words to dimensions
+                    dimension = abs(hash(word + str(i))) % EMBEDDING_DIM
+                    # Use square root of frequency as the value (common in TF-IDF)
+                    embedding[dimension] += (freq ** 0.5)
+            
+            # Normalize the embedding to have unit length (cosine similarity)
+            magnitude = sum(x**2 for x in embedding) ** 0.5
+            if magnitude > 0:
+                embedding = [x/magnitude for x in embedding]
+                
+            return embedding
+            
+        except Exception as e:
+            logger.error(f"Error in create_simple_embedding: {str(e)}")
+            # Fallback to zeros with a random seed
+            import random
+            random.seed(hash(str(text)) if text else 0)
+            return [random.random() * 0.01 for _ in range(EMBEDDING_DIM)]
     
     def index_product(self, product_id: int, product_data: Dict[str, Any]) -> bool:
         """
@@ -271,35 +343,83 @@ class VectorService:
         Returns:
             List of products sorted by relevance
         """
-        # Build search query from requirements
-        search_query = ""
-        
-        # Add title and description
-        if "title" in requirements:
-            search_query += f"{requirements['title']} "
-        if "description" in requirements:
-            search_query += f"{requirements['description']} "
-        
-        # Add specific requirements based on category
-        if category.lower() == "laptops" and "laptops" in requirements:
-            laptop_reqs = requirements["laptops"]
-            search_query += f"processor: {laptop_reqs.get('processor', '')} "
-            search_query += f"memory: {laptop_reqs.get('memory', '')} "
-            search_query += f"storage: {laptop_reqs.get('storage', '')} "
-            search_query += f"display: {laptop_reqs.get('display', '')} "
-            search_query += f"battery: {laptop_reqs.get('battery', '')} "
-            search_query += f"connectivity: {laptop_reqs.get('connectivity', '')} "
-            search_query += f"warranty: {laptop_reqs.get('warranty', '')} "
-        
-        elif category.lower() == "monitors" and "monitors" in requirements:
-            monitor_reqs = requirements["monitors"]
-            search_query += f"screen size: {monitor_reqs.get('screenSize', '')} "
-            search_query += f"resolution: {monitor_reqs.get('resolution', '')} "
-            search_query += f"panel technology: {monitor_reqs.get('panelTech', '')} "
-            search_query += f"brightness: {monitor_reqs.get('brightness', '')} "
-            search_query += f"contrast ratio: {monitor_reqs.get('contrastRatio', '')} "
-            search_query += f"connectivity: {monitor_reqs.get('connectivity', '')} "
-            search_query += f"warranty: {monitor_reqs.get('warranty', '')} "
+        try:
+            # Ensure requirements is a dict
+            if not isinstance(requirements, dict):
+                if hasattr(requirements, "dict"):
+                    requirements = requirements.dict()
+                elif hasattr(requirements, "__dict__"):
+                    requirements = requirements.__dict__
+                else:
+                    logger.warning("Could not convert requirements to dict, using empty dict")
+                    requirements = {}
+            
+            # Build search query from requirements
+            search_query = ""
+            
+            # Add title and description
+            if "title" in requirements:
+                search_query += f"{requirements['title']} "
+            if "description" in requirements:
+                search_query += f"{requirements['description']} "
+            
+            # Add specific requirements based on category
+            if category.lower() == "laptops" and "laptops" in requirements:
+                laptop_reqs = requirements["laptops"]
+                
+                # Handle both dict and object formats
+                if not isinstance(laptop_reqs, dict) and hasattr(laptop_reqs, "__dict__"):
+                    laptop_reqs = laptop_reqs.__dict__
+                
+                # Safely extract attributes with fallbacks
+                processor = laptop_reqs.get('processor', '') if isinstance(laptop_reqs, dict) else getattr(laptop_reqs, 'processor', '')
+                memory = laptop_reqs.get('memory', '') if isinstance(laptop_reqs, dict) else getattr(laptop_reqs, 'memory', '')
+                storage = laptop_reqs.get('storage', '') if isinstance(laptop_reqs, dict) else getattr(laptop_reqs, 'storage', '')
+                display = laptop_reqs.get('display', '') if isinstance(laptop_reqs, dict) else getattr(laptop_reqs, 'display', '')
+                battery = laptop_reqs.get('battery', '') if isinstance(laptop_reqs, dict) else getattr(laptop_reqs, 'battery', '')
+                connectivity = laptop_reqs.get('connectivity', '') if isinstance(laptop_reqs, dict) else getattr(laptop_reqs, 'connectivity', '')
+                warranty = laptop_reqs.get('warranty', '') if isinstance(laptop_reqs, dict) else getattr(laptop_reqs, 'warranty', '')
+                
+                search_query += f"processor: {processor} "
+                search_query += f"memory: {memory} "
+                search_query += f"storage: {storage} "
+                search_query += f"display: {display} "
+                search_query += f"battery: {battery} "
+                search_query += f"connectivity: {connectivity} "
+                search_query += f"warranty: {warranty} "
+            
+            elif category.lower() == "monitors" and "monitors" in requirements:
+                monitor_reqs = requirements["monitors"]
+                
+                # Handle both dict and object formats
+                if not isinstance(monitor_reqs, dict) and hasattr(monitor_reqs, "__dict__"):
+                    monitor_reqs = monitor_reqs.__dict__
+                
+                # Safely extract attributes with fallbacks
+                screen_size = monitor_reqs.get('screenSize', '') if isinstance(monitor_reqs, dict) else getattr(monitor_reqs, 'screenSize', '')
+                resolution = monitor_reqs.get('resolution', '') if isinstance(monitor_reqs, dict) else getattr(monitor_reqs, 'resolution', '')
+                panel_tech = monitor_reqs.get('panelTech', '') if isinstance(monitor_reqs, dict) else getattr(monitor_reqs, 'panelTech', '')
+                brightness = monitor_reqs.get('brightness', '') if isinstance(monitor_reqs, dict) else getattr(monitor_reqs, 'brightness', '')
+                contrast_ratio = monitor_reqs.get('contrastRatio', '') if isinstance(monitor_reqs, dict) else getattr(monitor_reqs, 'contrastRatio', '')
+                connectivity = monitor_reqs.get('connectivity', '') if isinstance(monitor_reqs, dict) else getattr(monitor_reqs, 'connectivity', '')
+                warranty = monitor_reqs.get('warranty', '') if isinstance(monitor_reqs, dict) else getattr(monitor_reqs, 'warranty', '')
+                
+                search_query += f"screen size: {screen_size} "
+                search_query += f"resolution: {resolution} "
+                search_query += f"panel technology: {panel_tech} "
+                search_query += f"brightness: {brightness} "
+                search_query += f"contrast ratio: {contrast_ratio} "
+                search_query += f"connectivity: {connectivity} "
+                search_query += f"warranty: {warranty} "
+                
+            # If we couldn't extract category-specific requirements, add generic product terms
+            if not search_query or len(search_query.strip()) < 10:
+                search_query += f"{category} product specifications quality features"
+                
+        except Exception as e:
+            logger.error(f"Error building search query from requirements: {str(e)}")
+            # Fallback query
+            search_query = f"{category} product specifications quality features"
         
         # Perform semantic search
         return self.search_similar_products(search_query, category, limit)
