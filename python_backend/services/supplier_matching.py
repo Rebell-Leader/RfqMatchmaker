@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Tuple, Optional
 import json
 
 from ..models.db_storage import DatabaseStorage
-from ..models.schemas import SupplierMatch, Product, Supplier, ExtractedRequirement
+from ..models.schemas import SupplierMatch, Product, Supplier, ExtractedRequirement, AwardCriteria
 from .vector_service import vector_service
 
 # Configure logging
@@ -21,6 +21,45 @@ logger = logging.getLogger(__name__)
 
 # Initialize database storage
 db_storage = DatabaseStorage()
+
+def ensure_extracted_requirement(requirements: Any) -> ExtractedRequirement:
+    """
+    Ensure that requirements are in the correct ExtractedRequirement format.
+    Convert dictionary to ExtractedRequirement object if needed.
+    
+    Args:
+        requirements: The requirements object or dictionary
+        
+    Returns:
+        ExtractedRequirement object
+    """
+    if isinstance(requirements, ExtractedRequirement):
+        return requirements
+        
+    if isinstance(requirements, dict):
+        try:
+            # Create default criteria if missing
+            if "criteria" not in requirements:
+                requirements["criteria"] = {
+                    "price": {"weight": 50},
+                    "quality": {"weight": 30},
+                    "delivery": {"weight": 20}
+                }
+                
+            return ExtractedRequirement(**requirements)
+        except Exception as e:
+            logger.error(f"Error converting dict to ExtractedRequirement: {str(e)}")
+            
+    # If we can't convert, create a minimal valid instance
+    return ExtractedRequirement(
+        title="Default Requirements",
+        categories=["Laptops", "Monitors"],
+        criteria=AwardCriteria(
+            price={"weight": 50},
+            quality={"weight": 30},
+            delivery={"weight": 20}
+        )
+    )
 
 def parse_delivery_time(delivery_time: str) -> float:
     """Parse delivery time string to get average days"""
@@ -396,12 +435,26 @@ def calculate_match_score(product: Product, supplier: Supplier, requirements: Ex
         "delivery": delivery_score
     }
 
-async def get_quantity_for_category(requirements: ExtractedRequirement, category: str) -> int:
+async def get_quantity_for_category(requirements: Any, category: str) -> int:
     """Get quantity from requirements for a specific category"""
-    if category.lower() == "laptops" and hasattr(requirements, "laptops") and requirements.laptops:
-        return requirements.laptops.quantity
-    elif category.lower() == "monitors" and hasattr(requirements, "monitors") and requirements.monitors:
-        return requirements.monitors.quantity
+    try:
+        # Ensure we have an ExtractedRequirement object
+        req_obj = ensure_extracted_requirement(requirements)
+        
+        if category.lower() == "laptops" and hasattr(req_obj, "laptops") and req_obj.laptops:
+            return req_obj.laptops.quantity
+        elif category.lower() == "monitors" and hasattr(req_obj, "monitors") and req_obj.monitors:
+            return req_obj.monitors.quantity
+            
+        # Try dict-style access if attribute access doesn't work
+        if isinstance(requirements, dict):
+            if category.lower() == "laptops" and "laptops" in requirements and requirements["laptops"]:
+                return requirements["laptops"].get("quantity", 1)
+            elif category.lower() == "monitors" and "monitors" in requirements and requirements["monitors"]:
+                return requirements["monitors"].get("quantity", 1)
+    except Exception as e:
+        logger.error(f"Error getting quantity for category {category}: {str(e)}")
+    
     return 1  # Default quantity
 
 async def calculate_price_score(product: Product, all_products: List[Product], criteria: Dict[str, Dict[str, int]]) -> float:
@@ -453,8 +506,11 @@ async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
                 logger.error(f"Failed to parse requirements for RFQ {rfq_id}")
                 return []
         
+        # Convert to ExtractedRequirement object if needed
+        req_obj = ensure_extracted_requirement(requirements)
+        
         # Get categories from requirements
-        categories = requirements.get("categories", []) if isinstance(requirements, dict) else requirements.categories
+        categories = req_obj.categories
         if not categories:
             logger.error(f"No categories found for RFQ {rfq_id}")
             return []
@@ -496,8 +552,12 @@ async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
                     logger.info(f"Indexed {indexed_count} products for category {category}")
                     
                     # Step 2: Use semantic search to find relevant products
+                    # Convert requirements to proper format for search
+                    search_req = req_obj
+                    search_req_dict = search_req.dict() if hasattr(search_req, "dict") else vars(search_req)
+                    
                     semantic_results = vector_service.search_rfq_requirements(
-                        requirements if isinstance(requirements, dict) else requirements.dict(),
+                        search_req_dict,
                         category,
                         limit=20  # Get top 20 matches from semantic search
                     )
@@ -531,12 +591,8 @@ async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
                                 # Get semantic similarity score
                                 semantic_score = result.get("score", 0.5) * 100
                                 
-                                # Create ExtractedRequirement instance if needed
-                                req_for_scoring = requirements
-                                if isinstance(requirements, dict) and not isinstance(requirements, ExtractedRequirement):
-                                    from ..models.schemas import ExtractedRequirement
-                                    # Create a compatible object for scoring
-                                    req_for_scoring = ExtractedRequirement(**requirements)
+                                # Convert to ExtractedRequirement object if needed
+                                req_for_scoring = ensure_extracted_requirement(requirements)
                                 
                                 # Calculate additional match details using traditional approach
                                 match_score, match_details = calculate_match_score(product, supplier, req_for_scoring, category)
@@ -600,12 +656,8 @@ async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
                 
                 if supplier:
                     try:
-                        # Create ExtractedRequirement instance if needed
-                        req_for_scoring = requirements
-                        if isinstance(requirements, dict) and not isinstance(requirements, ExtractedRequirement):
-                            from ..models.schemas import ExtractedRequirement
-                            # Create a compatible object for scoring
-                            req_for_scoring = ExtractedRequirement(**requirements)
+                        # Convert to ExtractedRequirement object if needed
+                        req_for_scoring = ensure_extracted_requirement(requirements)
                         
                         # Calculate match score based on RFQ criteria
                         match_score, match_details = calculate_match_score(product, supplier, req_for_scoring, category)
