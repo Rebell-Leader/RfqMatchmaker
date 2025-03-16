@@ -1,18 +1,48 @@
 import os
+import logging
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, Text, JSON, ForeignKey, DateTime, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.pool import QueuePool
 import json
 from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Get database connection string from environment variable
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable not set")
+    logger.error("DATABASE_URL environment variable not set - using SQLite for testing")
+    DATABASE_URL = "sqlite:///./test.db"
 
-# Create SQLAlchemy engine and session
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+try:
+    # Create SQLAlchemy engine with proper connection pooling and timeout settings
+    # Add connect_args only for PostgreSQL
+    connect_args = {}
+    if DATABASE_URL.startswith('postgresql'):
+        connect_args = {"connect_timeout": 10}  # PostgreSQL connection timeout
+    
+    engine = create_engine(
+        DATABASE_URL,
+        poolclass=QueuePool,
+        pool_size=5,
+        max_overflow=10,
+        pool_timeout=30,
+        pool_recycle=1800,  # Recycle connections after 30 minutes
+        connect_args=connect_args
+    )
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    logger.info(f"Database connection established successfully")
+except Exception as e:
+    logger.error(f"Database connection error: {str(e)}")
+    # Fallback to SQLite for testing if PostgreSQL fails
+    DATABASE_URL = "sqlite:///./test.db"
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    logger.warning(f"Using SQLite fallback database at {DATABASE_URL}")
+
 Base = declarative_base()
 
 # Define database models

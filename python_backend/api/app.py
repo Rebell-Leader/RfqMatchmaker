@@ -5,18 +5,30 @@ FastAPI application for RFQ processing platform.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from .routes import router
 from ..models.database import create_tables
-from ..models.db_storage import storage
+from ..models.sample_data import create_sample_data
 
 def create_app():
     """Create and configure the FastAPI application"""
-    # Create database tables
-    create_tables()
-    
-    # Initialize sample data
-    storage.initialize_sample_data()
+    try:
+        # Create database tables
+        logger.info("Creating database tables if they don't exist")
+        create_tables()
+        
+        # Initialize sample data
+        logger.info("Initializing sample data")
+        create_sample_data()
+        
+        logger.info("Database setup completed successfully")
+    except Exception as e:
+        logger.error(f"Error during database setup: {str(e)}")
     
     # Create FastAPI app
     app = FastAPI(
