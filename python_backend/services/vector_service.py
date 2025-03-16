@@ -104,8 +104,8 @@ class VectorService:
     
     def get_embedding(self, text: str) -> List[float]:
         """Get embeddings for the given text using OpenAI or fallback method."""
-        # Check if OpenAI is available
-        if self.use_openai:
+        # Check if OpenAI is available and initialized
+        if self.use_openai and self.openai_client:
             try:
                 response = self.openai_client.embeddings.create(
                     model="text-embedding-ada-002",
@@ -114,6 +114,10 @@ class VectorService:
                 return response.data[0].embedding
             except Exception as e:
                 logger.error(f"Error creating embedding with OpenAI: {str(e)}")
+                # If we get API errors, temporarily disable OpenAI to avoid further attempts
+                if "API" in str(e):
+                    logger.warning("Temporarily disabling OpenAI due to API errors")
+                    self.use_openai = False
                 # Fall back to the basic embedding method
         
         # Fallback embedding method: TF-IDF style simple embedding
@@ -210,7 +214,18 @@ class VectorService:
         Returns:
             bool: True if successfully indexed
         """
+        if not self.qdrant_client:
+            logger.error("Qdrant client is not initialized, cannot index product")
+            return False
+            
         try:
+            # Ensure product_data has required fields
+            required_fields = ["name", "category", "description", "specifications", "supplierId", "price"]
+            for field in required_fields:
+                if field not in product_data:
+                    logger.error(f"Missing required field '{field}' in product data")
+                    return False
+            
             # Prepare text for embedding
             text_to_embed = f"{product_data['name']} {product_data['description']} "
             
@@ -236,19 +251,41 @@ class VectorService:
             }
             
             # Index in Qdrant
-            self.qdrant_client.upsert(
-                collection_name=COLLECTION_NAME,
-                points=[
-                    PointStruct(
-                        id=product_id,
-                        vector=embedding,
-                        payload=payload
+            try:
+                self.qdrant_client.upsert(
+                    collection_name=COLLECTION_NAME,
+                    points=[
+                        PointStruct(
+                            id=product_id,
+                            vector=embedding,
+                            payload=payload
+                        )
+                    ]
+                )
+                
+                logger.info(f"Successfully indexed product {product_id}")
+                return True
+            except Exception as e:
+                logger.error(f"Error in Qdrant upsert operation: {str(e)}")
+                # Try to recreate collection if needed
+                try:
+                    self._create_collection_if_not_exists()
+                    # Retry upsert
+                    self.qdrant_client.upsert(
+                        collection_name=COLLECTION_NAME,
+                        points=[
+                            PointStruct(
+                                id=product_id,
+                                vector=embedding,
+                                payload=payload
+                            )
+                        ]
                     )
-                ]
-            )
-            
-            logger.info(f"Successfully indexed product {product_id}")
-            return True
+                    logger.info(f"Successfully indexed product {product_id} after recreating collection")
+                    return True
+                except Exception as retry_error:
+                    logger.error(f"Retry failed: {str(retry_error)}")
+                    return False
             
         except Exception as e:
             logger.error(f"Error indexing product {product_id}: {str(e)}")
@@ -289,6 +326,15 @@ class VectorService:
         Returns:
             List of products sorted by relevance
         """
+        if not self.qdrant_client:
+            logger.error("Qdrant client is not initialized, cannot perform search")
+            return []
+            
+        # Validate input
+        if not query_text or not isinstance(query_text, str):
+            logger.error(f"Invalid search query: {type(query_text)}")
+            return []
+            
         try:
             # Get embedding for the query
             query_embedding = self.get_embedding(query_text)
@@ -306,21 +352,47 @@ class VectorService:
                 )
             
             # Search
-            search_results = self.qdrant_client.search(
-                collection_name=COLLECTION_NAME,
-                query_vector=query_embedding,
-                limit=limit,
-                filter=filter_param
-            )
-            
-            # Format results
-            results = []
-            for result in search_results:
-                product_data = result.payload
-                product_data["score"] = result.score
-                results.append(product_data)
+            try:
+                search_results = self.qdrant_client.search(
+                    collection_name=COLLECTION_NAME,
+                    query_vector=query_embedding,
+                    limit=limit,
+                    filter=filter_param
+                )
                 
-            return results
+                # Format results
+                results = []
+                for result in search_results:
+                    product_data = result.payload
+                    product_data["score"] = result.score
+                    results.append(product_data)
+                    
+                return results
+            except Exception as e:
+                logger.error(f"Error performing Qdrant search: {str(e)}")
+                # Try to recreate collection if needed
+                try:
+                    self._create_collection_if_not_exists()
+                    # Retry search
+                    search_results = self.qdrant_client.search(
+                        collection_name=COLLECTION_NAME,
+                        query_vector=query_embedding,
+                        limit=limit,
+                        filter=filter_param
+                    )
+                    
+                    # Format results
+                    results = []
+                    for result in search_results:
+                        product_data = result.payload
+                        product_data["score"] = result.score
+                        results.append(product_data)
+                        
+                    logger.info("Search successful after recreating collection")
+                    return results
+                except Exception as retry_error:
+                    logger.error(f"Retry failed: {str(retry_error)}")
+                    return []
             
         except Exception as e:
             logger.error(f"Error searching products: {str(e)}")
@@ -343,24 +415,45 @@ class VectorService:
         Returns:
             List of products sorted by relevance
         """
+        if not self.qdrant_client:
+            logger.error("Qdrant client is not initialized, cannot search RFQ requirements")
+            return []
+            
+        # Validate inputs
+        if not category:
+            logger.error("Category is required for searching RFQ requirements")
+            return []
+            
+        if not requirements:
+            logger.warning("Empty requirements provided, using generic search")
+            search_query = f"{category} product specifications quality features"
+            return self.search_similar_products(search_query, category, limit)
+        
+        # Initialize search query
+        search_query = ""
+        
         try:
             # Ensure requirements is a dict
             if not isinstance(requirements, dict):
                 if hasattr(requirements, "dict"):
-                    requirements = requirements.dict()
+                    try:
+                        requirements = requirements.dict()
+                    except Exception as e:
+                        logger.warning(f"Failed to convert to dict using .dict(): {str(e)}")
                 elif hasattr(requirements, "__dict__"):
-                    requirements = requirements.__dict__
+                    try:
+                        requirements = requirements.__dict__
+                    except Exception as e:
+                        logger.warning(f"Failed to convert to dict using .__dict__: {str(e)}")
                 else:
-                    logger.warning("Could not convert requirements to dict, using empty dict")
+                    logger.warning(f"Could not convert requirements to dict, type: {type(requirements)}")
                     requirements = {}
             
             # Build search query from requirements
-            search_query = ""
-            
             # Add title and description
-            if "title" in requirements:
+            if "title" in requirements and requirements["title"]:
                 search_query += f"{requirements['title']} "
-            if "description" in requirements:
+            if "description" in requirements and requirements["description"]:
                 search_query += f"{requirements['description']} "
             
             # Add specific requirements based on category
@@ -369,7 +462,10 @@ class VectorService:
                 
                 # Handle both dict and object formats
                 if not isinstance(laptop_reqs, dict) and hasattr(laptop_reqs, "__dict__"):
-                    laptop_reqs = laptop_reqs.__dict__
+                    try:
+                        laptop_reqs = laptop_reqs.__dict__
+                    except Exception as e:
+                        logger.warning(f"Failed to convert laptop requirements to dict: {str(e)}")
                 
                 # Safely extract attributes with fallbacks
                 processor = laptop_reqs.get('processor', '') if isinstance(laptop_reqs, dict) else getattr(laptop_reqs, 'processor', '')
@@ -387,13 +483,18 @@ class VectorService:
                 search_query += f"battery: {battery} "
                 search_query += f"connectivity: {connectivity} "
                 search_query += f"warranty: {warranty} "
+                
+                logger.info(f"Built search query for laptop requirements: {search_query[:100]}...")
             
             elif category.lower() == "monitors" and "monitors" in requirements:
                 monitor_reqs = requirements["monitors"]
                 
                 # Handle both dict and object formats
                 if not isinstance(monitor_reqs, dict) and hasattr(monitor_reqs, "__dict__"):
-                    monitor_reqs = monitor_reqs.__dict__
+                    try:
+                        monitor_reqs = monitor_reqs.__dict__
+                    except Exception as e:
+                        logger.warning(f"Failed to convert monitor requirements to dict: {str(e)}")
                 
                 # Safely extract attributes with fallbacks
                 screen_size = monitor_reqs.get('screenSize', '') if isinstance(monitor_reqs, dict) else getattr(monitor_reqs, 'screenSize', '')
@@ -412,14 +513,18 @@ class VectorService:
                 search_query += f"connectivity: {connectivity} "
                 search_query += f"warranty: {warranty} "
                 
+                logger.info(f"Built search query for monitor requirements: {search_query[:100]}...")
+                
             # If we couldn't extract category-specific requirements, add generic product terms
             if not search_query or len(search_query.strip()) < 10:
-                search_query += f"{category} product specifications quality features"
+                search_query = f"{category} product specifications quality features"
+                logger.info(f"Using generic search query: {search_query}")
                 
         except Exception as e:
             logger.error(f"Error building search query from requirements: {str(e)}")
             # Fallback query
             search_query = f"{category} product specifications quality features"
+            logger.info(f"Using fallback search query due to error: {search_query}")
         
         # Perform semantic search
         return self.search_similar_products(search_query, category, limit)
