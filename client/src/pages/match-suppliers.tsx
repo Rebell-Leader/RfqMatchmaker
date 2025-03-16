@@ -16,6 +16,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { getRFQById, matchSuppliersForRFQ, formatCurrency, calculateTotalPrice } from "@/lib/supplier-service";
 import { useRfq } from "@/context/rfq-context";
+import { useDemoMode } from "@/context/demo-context";
 import { formatSpecifications, formatWarningText, sortSupplierMatches, filterSupplierMatches, getUniqueFilterOptions } from "@/utils/rfq-processor";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -24,6 +25,7 @@ export default function MatchSuppliers() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { setRfqId, setSupplierMatches, setSelectedMatches } = useRfq();
+  const { isDemoMode, demoRfq, demoSupplierMatches, simulateProcessing } = useDemoMode();
   
   const [loading, setLoading] = useState(true);
   const [matchLoading, setMatchLoading] = useState(false);
@@ -44,6 +46,31 @@ export default function MatchSuppliers() {
     async function fetchRfq() {
       try {
         setLoading(true);
+        
+        // If in demo mode, use demo data
+        if (isDemoMode && String(demoRfq.id) === id) {
+          // Simulate processing delay
+          setTimeout(() => {
+            setRfq(demoRfq);
+            setRequirements(demoRfq.extractedRequirements);
+            
+            // Update context
+            setRfqId(demoRfq.id);
+            
+            // Find initial tab based on categories
+            const categories = demoRfq.extractedRequirements.categories || [];
+            if (categories.includes("Laptops")) {
+              setSelectedTab("laptops");
+            } else if (categories.includes("Monitors")) {
+              setSelectedTab("monitors");
+            }
+            
+            setLoading(false);
+          }, 1000);
+          return;
+        }
+        
+        // Otherwise fetch real data
         const rfqData = await getRFQById(Number(id));
         setRfq(rfqData);
         setRequirements(rfqData.extractedRequirements);
@@ -67,19 +94,40 @@ export default function MatchSuppliers() {
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        if (!isDemoMode) {
+          setLoading(false);
+        }
       }
     }
     
     if (id) {
       fetchRfq();
     }
-  }, [id, setRfqId, toast]);
+  }, [id, setRfqId, toast, isDemoMode, demoRfq]);
   
   useEffect(() => {
     async function matchSuppliers() {
       try {
         setMatchLoading(true);
+        
+        // If in demo mode, use demo matches
+        if (isDemoMode && String(demoRfq.id) === id) {
+          // Simulate processing delay
+          simulateProcessing(() => {
+            setMatches(demoSupplierMatches);
+            
+            // Get filter options from matches
+            const options = getUniqueFilterOptions(demoSupplierMatches);
+            setFilterOptions(options);
+            
+            // Update context
+            setSupplierMatches(demoSupplierMatches);
+            setMatchLoading(false);
+          });
+          return;
+        }
+        
+        // Otherwise fetch real data
         const matchResults = await matchSuppliersForRFQ(Number(id));
         setMatches(matchResults);
         
@@ -97,14 +145,16 @@ export default function MatchSuppliers() {
           variant: "destructive",
         });
       } finally {
-        setMatchLoading(false);
+        if (!isDemoMode) {
+          setMatchLoading(false);
+        }
       }
     }
     
     if (rfq && !matches.length) {
       matchSuppliers();
     }
-  }, [id, rfq, matches.length, setSupplierMatches, toast]);
+  }, [id, rfq, matches.length, setSupplierMatches, toast, isDemoMode, demoRfq, demoSupplierMatches, simulateProcessing]);
   
   const handleGoBack = () => {
     navigate(`/review/${id}`);
@@ -209,7 +259,7 @@ export default function MatchSuppliers() {
             <p className="text-gray-600 mb-6">
               The requested RFQ could not be found or has not been properly processed.
             </p>
-            <Button onClick={() => navigate("/")}>Return to Upload</Button>
+            <Button onClick={() => navigate("/upload")}>Return to Upload</Button>
           </CardContent>
         </Card>
       </div>

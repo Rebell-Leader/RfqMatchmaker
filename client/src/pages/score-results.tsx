@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useRfq } from "@/context/rfq-context";
+import { useDemoMode } from "@/context/demo-context";
 import { getRFQById, formatCurrency } from "@/lib/supplier-service";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -14,6 +15,7 @@ export default function ScoreResults() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { setRfqId, selectedMatches, setSelectedMatches } = useRfq();
+  const { isDemoMode, demoRfq, demoSupplierMatches, simulateProcessing } = useDemoMode();
   
   const [loading, setLoading] = useState(true);
   const [rfq, setRfq] = useState<any>(null);
@@ -23,6 +25,31 @@ export default function ScoreResults() {
     async function fetchRfq() {
       try {
         setLoading(true);
+        
+        // If in demo mode, use demo data
+        if (isDemoMode && String(demoRfq.id) === id) {
+          // Simulate processing delay
+          setTimeout(() => {
+            setRfq(demoRfq);
+            setRequirements(demoRfq.extractedRequirements);
+            
+            // Update context
+            setRfqId(demoRfq.id);
+            
+            // If no suppliers are selected in demo mode, select top 3
+            if (selectedMatches.length === 0) {
+              const topMatches = [...demoSupplierMatches]
+                .sort((a, b) => b.matchScore - a.matchScore)
+                .slice(0, 3);
+              setSelectedMatches(topMatches);
+            }
+            
+            setLoading(false);
+          }, 1000);
+          return;
+        }
+        
+        // Otherwise fetch real data
         const rfqData = await getRFQById(Number(id));
         setRfq(rfqData);
         setRequirements(rfqData.extractedRequirements);
@@ -37,14 +64,16 @@ export default function ScoreResults() {
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        if (!isDemoMode) {
+          setLoading(false);
+        }
       }
     }
     
     if (id) {
       fetchRfq();
     }
-  }, [id, setRfqId, toast]);
+  }, [id, setRfqId, toast, isDemoMode, demoRfq, demoSupplierMatches, selectedMatches, setSelectedMatches]);
   
   const handleGoBack = () => {
     navigate(`/match/${id}`);
@@ -115,7 +144,7 @@ export default function ScoreResults() {
             <p className="text-gray-600 mb-6">
               The requested RFQ could not be found or has not been properly processed.
             </p>
-            <Button onClick={() => navigate("/")}>Return to Upload</Button>
+            <Button onClick={() => navigate("/upload")}>Return to Upload</Button>
           </CardContent>
         </Card>
       </div>
