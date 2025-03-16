@@ -11,6 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { uploadRFQFile, createManualRFQ } from "@/lib/ai-service";
 import { useRfq } from "@/context/rfq-context";
+import { useDemoMode } from "@/context/demo-context";
+import { Beaker } from "lucide-react";
 
 // Form schema for manual RFQ entry
 const manualRfqSchema = z.object({
@@ -25,6 +27,7 @@ export default function UploadRfq() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { setRfqId, setCurrentStep } = useRfq();
+  const { isDemoMode, demoRfq, simulateProcessing } = useDemoMode();
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -69,6 +72,25 @@ export default function UploadRfq() {
     document.getElementById("rfq-upload")?.click();
   };
 
+  // Function to handle demo mode processing
+  const handleDemoProcessing = () => {
+    setIsUploading(true);
+    
+    simulateProcessing(() => {
+      setRfqId(demoRfq.id);
+      setCurrentStep(2); // Move to step 2 (Review Requirements)
+      
+      toast({
+        title: "Demo RFQ processed",
+        description: "Redirecting to review requirements...",
+        variant: "default"
+      });
+      
+      setIsUploading(false);
+      navigate(`/review/${demoRfq.id}`);
+    });
+  };
+
   // Function to handle file upload
   const handleFileUpload = async (file: File) => {
     try {
@@ -84,6 +106,12 @@ export default function UploadRfq() {
           description: "Please upload a PDF, DOC, DOCX, or TXT file.",
           variant: "destructive"
         });
+        return;
+      }
+      
+      // If in demo mode, use demo data instead of actual API call
+      if (isDemoMode) {
+        handleDemoProcessing();
         return;
       }
       
@@ -110,7 +138,9 @@ export default function UploadRfq() {
         variant: "destructive"
       });
     } finally {
-      setIsUploading(false);
+      if (!isDemoMode) {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -121,6 +151,12 @@ export default function UploadRfq() {
       
       // Log form values for debugging
       console.log("Submitting manual RFQ form with values:", values);
+      
+      // If in demo mode, use demo data instead of actual API call
+      if (isDemoMode) {
+        handleDemoProcessing();
+        return;
+      }
       
       // Create manual RFQ
       const rfqId = await createManualRFQ(
@@ -168,7 +204,9 @@ export default function UploadRfq() {
         variant: "destructive"
       });
     } finally {
-      setIsUploading(false);
+      if (!isDemoMode) {
+        setIsUploading(false);
+      }
     }
   };
 

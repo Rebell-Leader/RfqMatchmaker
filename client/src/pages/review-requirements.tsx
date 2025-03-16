@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { getRFQById } from "@/lib/supplier-service";
 import { useRfq } from "@/context/rfq-context";
+import { useDemoMode } from "@/context/demo-context";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ReviewRequirements() {
@@ -13,6 +14,7 @@ export default function ReviewRequirements() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { setRfqId, setExtractedRequirements, setCurrentStep } = useRfq();
+  const { isDemoMode, demoRfq, simulateProcessing } = useDemoMode();
   const [loading, setLoading] = useState(true);
   const [rfq, setRfq] = useState<any>(null);
   const [requirements, setRequirements] = useState<any>(null);
@@ -21,6 +23,25 @@ export default function ReviewRequirements() {
     async function fetchRfq() {
       try {
         setLoading(true);
+        
+        // If in demo mode, use demo data
+        if (isDemoMode && String(demoRfq.id) === id) {
+          // Simulate processing delay
+          setTimeout(() => {
+            setRfq(demoRfq);
+            setRequirements(demoRfq.extractedRequirements);
+            
+            // Update context
+            setRfqId(demoRfq.id);
+            setExtractedRequirements(demoRfq.extractedRequirements);
+            setCurrentStep(2); // Ensure we're on step 2 (Review Requirements)
+            
+            setLoading(false);
+          }, 1000);
+          return;
+        }
+        
+        // Otherwise fetch real data
         const rfqData = await getRFQById(Number(id));
         setRfq(rfqData);
         setRequirements(rfqData.extractedRequirements);
@@ -37,18 +58,20 @@ export default function ReviewRequirements() {
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        if (!isDemoMode) {
+          setLoading(false);
+        }
       }
     }
     
     if (id) {
       fetchRfq();
     }
-  }, [id, setRfqId, setExtractedRequirements, setCurrentStep, toast]);
+  }, [id, setRfqId, setExtractedRequirements, setCurrentStep, toast, isDemoMode, demoRfq]);
   
   const handleGoBack = () => {
     setCurrentStep(1); // Go back to step 1 (Upload RFQ)
-    navigate("/");
+    navigate("/upload");
   };
   
   const handleFindSuppliers = () => {
