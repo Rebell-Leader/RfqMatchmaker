@@ -12,19 +12,39 @@ from openai import OpenAI
 
 from ..models.schemas import ExtractedRequirement, EmailTemplate
 
-# Get API key from environment variable, fall back to a default for development only
-API_KEY = os.environ.get("FEATHERLESS_API_KEY", "rc_f8cf96bf43de3fde06f99a693f4d11e32d0c68a3bf3b7cdcaf851efec169d0b8")
+# Get API key from environment variable
+API_KEY = os.environ.get("FEATHERLESS_API_KEY")
 
-# Initialize Featherless AI client
-client = OpenAI(
-    base_url="https://api.featherless.ai/v1",
-    api_key=API_KEY,
-)
+# Initialize Featherless AI client if API key is available
+client = None
+if API_KEY:
+    client = OpenAI(
+        base_url="https://api.featherless.ai/v1",
+        api_key=API_KEY,
+    )
 
 async def extract_requirements_from_rfq(content: str) -> ExtractedRequirement:
     """
     Extract structured requirements from RFQ document using Featherless AI.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Check if API client is available
+    if client is None:
+        logger.error("Featherless AI client not initialized - API key missing")
+        # Return default requirements
+        return ExtractedRequirement(
+            title="Error: API Key Missing",
+            description="Please set FEATHERLESS_API_KEY environment variable",
+            categories=["Laptops"],
+            criteria={
+                "price": {"weight": 50},
+                "quality": {"weight": 30},
+                "delivery": {"weight": 20}
+            }
+        )
+    
     try:
         system_prompt = """
         You are an AI assistant that extracts structured information from Request for Quotations (RFQs).
@@ -168,6 +188,38 @@ async def generate_email_proposal(rfq: Dict[str, Any], product: Dict[str, Any], 
     """
     Generate personalized email proposal for a selected supplier using Featherless AI.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Check if API client is available
+    if client is None:
+        logger.error("Featherless AI client not initialized - API key missing")
+        # Create a default email template with safe values
+        total_price = 0
+        try:
+            quantity = product.get('quantity', 1)
+            price = product.get('price', 0)
+            total_price = price * quantity
+        except:
+            total_price = 0
+            
+        return EmailTemplate(
+            to=supplier.get("contactEmail", "supplier@example.com"),
+            subject=f"Proposal for {rfq.get('title', 'IT Equipment')}",
+            body=f"""Dear {supplier.get('name', 'Supplier')},
+
+Thank you for the opportunity to submit a proposal for {rfq.get('title', 'IT Equipment')}. 
+We believe our {product.get('name', 'product')} is an excellent fit for your requirements.
+
+The total price for the requested items is ${total_price:.2f}.
+
+Note: This is a fallback template as the FEATHERLESS_API_KEY environment variable is missing.
+
+Best regards,
+Procurement Team
+"""
+        )
+    
     try:
         # Format the prompt with the required information
         system_prompt = """
