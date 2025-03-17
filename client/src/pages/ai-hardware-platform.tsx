@@ -125,10 +125,9 @@ export default function AIHardwarePlatform() {
     queryFn: async () => {
       try {
         // Using our dedicated AI hardware endpoint
-        const response = await apiRequest("/api/products/ai-hardware", {
-          method: "GET"
-        } as any);
-        return response as unknown as AIHardwareProduct[];
+        const response = await apiRequest("GET", "/api/products/ai-hardware");
+        const data = await response.json();
+        return data as AIHardwareProduct[];
       } catch (error) {
         console.error("Failed to fetch AI hardware products:", error);
         return [] as AIHardwareProduct[];
@@ -144,9 +143,8 @@ export default function AIHardwarePlatform() {
       if (!productToCheck) return null;
       
       try {
-        const response = await apiRequest(`/api/compliance?country=${complianceCountry}&productId=${productToCheck}`, { 
-          method: "GET" 
-        });
+        const response = await apiRequest("GET", `/api/compliance?country=${complianceCountry}&productId=${productToCheck}`);
+        const data = await response.json();
         return response as ComplianceCheckResult;
       } catch (error) {
         console.error("Failed to check compliance:", error);
@@ -173,10 +171,9 @@ export default function AIHardwarePlatform() {
       
       try {
         const frameworksStr = selectedFrameworksToCheck.join(',');
-        const response = await apiRequest(`/api/frameworks-compatibility?productId=${selectedProduct}&frameworks=${frameworksStr}`, {
-          method: "GET"
-        });
-        return response;
+        const response = await apiRequest("GET", `/api/frameworks-compatibility?productId=${selectedProduct}&frameworks=${frameworksStr}`);
+        const data = await response.json();
+        return data;
       } catch (error) {
         console.error("Failed to check framework compatibility:", error);
         return null;
@@ -208,10 +205,9 @@ export default function AIHardwarePlatform() {
       
       try {
         const productIdsStr = productsToCompare.join(',');
-        const response = await apiRequest(`/api/hardware-comparison?productIds=${productIdsStr}&metric=${comparisonMetric}`, {
-          method: "GET"
-        });
-        return response;
+        const response = await apiRequest("GET", `/api/hardware-comparison?productIds=${productIdsStr}&metric=${comparisonMetric}`);
+        const data = await response.json();
+        return data;
       } catch (error) {
         console.error("Failed to compare hardware performance:", error);
         return null;
