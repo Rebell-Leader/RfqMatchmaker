@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { FaBolt, FaSearch, FaChartBar, FaFileAlt, FaLaptop, FaMicrochip } from "react-icons/fa";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Cpu } from "lucide-react";
+import { Cpu, Globe, Zap, Shield, BarChart4 } from "lucide-react";
 import { useDemoMode } from "@/context/demo-context";
 
 export default function Landing() {
@@ -14,38 +14,99 @@ export default function Landing() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       {/* Hero Section */}
       <section className="relative py-20 px-6 md:px-10 max-w-7xl mx-auto">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent rounded-3xl" style={{ zIndex: -1 }}></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-cyan-500/10 to-transparent rounded-3xl" style={{ zIndex: -1 }}></div>
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Find the Perfect Supplier for Your RFQ in Any Industry – Fast and Effortless!
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium mb-4">
+              <Cpu className="w-4 h-4 mr-2" />
+              <span>AI Hardware Procurement Simplified</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-6 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
+              Find the Perfect AI Accelerators for Your Machine Learning Workloads
             </h1>
             <p className="text-xl mb-8 text-slate-700">
-              Our AI-powered platform transforms your RFQ into actionable supplier matches, 
-              tailored proposals, and automated communication – saving you time and maximizing efficiency.
+              Our specialized platform helps you navigate complex AI hardware procurement, 
+              from compliance verification to performance benchmarking and global supplier matching.
             </p>
-            <Button 
-              size="lg" 
-              className="text-lg px-8 py-6"
-              onClick={() => navigate("/upload")}
-            >
-              Get Started
-            </Button>
+            <div className="flex flex-wrap gap-4">
+              <Button 
+                size="lg" 
+                className="text-lg px-8 py-6 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
+                onClick={() => navigate("/upload")}
+              >
+                Start Procurement
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="text-lg px-8 py-6 border-blue-300 text-blue-700 hover:bg-blue-50"
+                onClick={() => navigate("/ai-hardware")}
+              >
+                Explore AI Platform
+              </Button>
+            </div>
           </div>
           <div className="relative">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-primary/60 rounded-lg opacity-75 blur"></div>
-            <div className="relative bg-white p-8 rounded-lg shadow-lg">
-              <img 
-                src="https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" 
-                alt="Supplier matching process" 
-                className="w-full h-auto rounded-md shadow"
-              />
-              <div className="mt-4 grid grid-cols-5 gap-2">
-                <div className="h-2 bg-primary rounded-full"></div>
-                <div className="h-2 bg-primary/80 rounded-full"></div>
-                <div className="h-2 bg-primary/60 rounded-full"></div>
-                <div className="h-2 bg-primary/40 rounded-full"></div>
-                <div className="h-2 bg-primary/20 rounded-full"></div>
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-lg opacity-75 blur"></div>
+            <div className="relative bg-slate-900 p-8 rounded-lg shadow-lg">
+              <div className="bg-slate-800 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-green-400 text-sm">NVIDIA H100</span>
+                  </div>
+                  <span className="text-cyan-400 text-xs">989 TFLOPs</span>
+                </div>
+                
+                <div className="space-y-2.5">
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-400 mb-1">
+                      <span>Memory</span>
+                      <span>80GB HBM3</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-700 rounded-full">
+                      <div className="h-1.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" style={{ width: '90%' }}></div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-400 mb-1">
+                      <span>Bandwidth</span>
+                      <span>3.3 TB/s</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-700 rounded-full">
+                      <div className="h-1.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" style={{ width: '95%' }}></div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-400 mb-1">
+                      <span>Framework Support</span>
+                      <span>Complete</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-700 rounded-full">
+                      <div className="h-1.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" style={{ width: '100%' }}></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="flex items-center bg-slate-900/50 p-1.5 rounded text-xs text-slate-300">
+                    <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></div>
+                    <span>Export Compliant</span>
+                  </div>
+                  <div className="flex items-center bg-slate-900/50 p-1.5 rounded text-xs text-slate-300">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 mr-1.5"></div>
+                    <span>35 Day Delivery</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-4 gap-2">
+                <div className="h-1.5 bg-blue-600 rounded-full"></div>
+                <div className="h-1.5 bg-blue-500 rounded-full"></div>
+                <div className="h-1.5 bg-cyan-500 rounded-full"></div>
+                <div className="h-1.5 bg-cyan-400 rounded-full"></div>
               </div>
             </div>
           </div>
@@ -57,19 +118,19 @@ export default function Landing() {
         <div className="bg-white rounded-lg shadow-lg p-8 mb-12">
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              <h2 className="text-2xl font-bold mb-4 text-red-600">The Problem</h2>
+              <h2 className="text-2xl font-bold mb-4 text-red-600">The AI Hardware Challenge</h2>
               <p className="text-slate-700">
-                Searching for suppliers that meet your RFQ requirements can be time-consuming and inefficient. 
-                Whether you're sourcing electronics, manufacturing equipment, or commodities, 
-                finding the right match is a challenge.
+                Procuring the right AI accelerators is increasingly complex due to geopolitical restrictions,
+                diverse performance metrics, and specialized hardware requirements. Many organizations struggle with 
+                comparing options across manufacturers while ensuring compliance and optimal performance.
               </p>
             </div>
             <div>
-              <h2 className="text-2xl font-bold mb-4 text-green-600">Our Solution</h2>
+              <h2 className="text-2xl font-bold mb-4 text-blue-600">Our Specialized Solution</h2>
               <p className="text-slate-700">
-                Upload your RFQ, let our platform analyze your requirements, and instantly find 
-                suppliers that match your needs. Score them based on price, quality, and delivery 
-                criteria, and send tailored proposals in minutes.
+                Our AI hardware platform analyzes technical requirements, verifies export compliance, 
+                benchmarks performance for your specific workloads, and matches you with available suppliers. 
+                We streamline procurement while ensuring regulatory compliance and maximizing ML/AI performance.
               </p>
             </div>
           </div>
@@ -79,54 +140,58 @@ export default function Landing() {
       {/* Features Section */}
       <section className="py-16 px-6 bg-gradient-to-b from-slate-100 to-white">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Killer Features</h2>
+          <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">AI Hardware Procurement Features</h2>
+          <p className="text-lg text-center text-slate-600 mb-12 max-w-3xl mx-auto">
+            Our platform provides specialized features designed for the unique challenges of AI hardware procurement, 
+            ensuring you find the optimal balance of performance, compliance, and value.
+          </p>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Feature 1 */}
-            <div className="bg-white p-6 rounded-lg shadow-lg border border-slate-200 hover:border-primary/50 transition-all">
-              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                <FaSearch className="text-primary text-xl" />
+            <div className="bg-white p-6 rounded-lg shadow-lg border border-blue-200 hover:border-blue-500 hover:shadow-blue-100 transition-all">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center mb-4 text-white">
+                <Globe className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Industry-Agnostic Matching</h3>
+              <h3 className="text-xl font-semibold mb-2">Global Compliance Checks</h3>
               <p className="text-slate-600">
-                Works for any industry, not just electronics. Whether you need office supplies, 
-                industrial equipment, or raw materials.
+                Automatically verify export restrictions and compliance requirements
+                for AI hardware across different regions and jurisdictions.
               </p>
             </div>
             
             {/* Feature 2 */}
-            <div className="bg-white p-6 rounded-lg shadow-lg border border-slate-200 hover:border-primary/50 transition-all">
-              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                <FaBolt className="text-primary text-xl" />
+            <div className="bg-white p-6 rounded-lg shadow-lg border border-blue-200 hover:border-blue-500 hover:shadow-blue-100 transition-all">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center mb-4 text-white">
+                <BarChart4 className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">RFQ Parsing with AI</h3>
+              <h3 className="text-xl font-semibold mb-2">Performance Benchmarks</h3>
               <p className="text-slate-600">
-                Extracts detailed requirements from RFQs using advanced NLP models, 
-                no manual input required.
+                Compare accelerator performance across different models and workloads, 
+                including FP16/FP32 performance, memory bandwidth, and ML benchmarks.
               </p>
             </div>
             
             {/* Feature 3 */}
-            <div className="bg-white p-6 rounded-lg shadow-lg border border-slate-200 hover:border-primary/50 transition-all">
-              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                <FaChartBar className="text-primary text-xl" />
+            <div className="bg-white p-6 rounded-lg shadow-lg border border-blue-200 hover:border-blue-500 hover:shadow-blue-100 transition-all">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center mb-4 text-white">
+                <Shield className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Supplier Scoring System</h3>
+              <h3 className="text-xl font-semibold mb-2">Framework Compatibility</h3>
               <p className="text-slate-600">
-                Scores suppliers based on weighted criteria like price (50%), 
-                quality (30%), and delivery time (20%).
+                Verify hardware compatibility with popular ML frameworks like PyTorch, 
+                TensorFlow, and JAX to ensure seamless integration with your stack.
               </p>
             </div>
             
             {/* Feature 4 */}
-            <div className="bg-white p-6 rounded-lg shadow-lg border border-slate-200 hover:border-primary/50 transition-all">
-              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                <FaFileAlt className="text-primary text-xl" />
+            <div className="bg-white p-6 rounded-lg shadow-lg border border-blue-200 hover:border-blue-500 hover:shadow-blue-100 transition-all">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center mb-4 text-white">
+                <Zap className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Automated Proposals</h3>
+              <h3 className="text-xl font-semibold mb-2">Intelligent Matching</h3>
               <p className="text-slate-600">
-                Generates professional email templates with product details, 
-                quantities, and pricing extracted from RFQs.
+                Match your specific AI workload requirements with the optimal hardware solutions
+                based on performance benchmarks, cooling requirements, and power constraints.
               </p>
             </div>
           </div>
@@ -249,56 +314,93 @@ export default function Landing() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-16 px-6 max-w-6xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-12">How MatchPoint Works</h2>
+      <section className="py-20 px-6 max-w-6xl mx-auto">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl lg:text-4xl font-bold mb-5 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
+            AI Hardware Procurement Process
+          </h2>
+          <p className="text-lg text-slate-600 max-w-3xl mx-auto">
+            Our specialized platform streamlines complex AI hardware procurement, ensuring you get 
+            the optimal hardware for your machine learning and AI workloads.
+          </p>
+        </div>
         
-        <div className="bg-white p-8 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-4 text-center">
-            Example: Populating a high school computer class with laptops and monitors
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-8 lg:p-10 rounded-xl shadow-xl text-white">
+          <h3 className="text-xl font-semibold mb-8 text-center text-cyan-400">
+            Example: AI Accelerator Procurement for ML Cloud Training Platform
           </h3>
           
-          <div className="grid md:grid-cols-5 gap-4 mt-8">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-xl font-bold">1</div>
-              <p className="text-slate-700">Upload the RFQ with detailed specifications</p>
+          <div className="grid md:grid-cols-5 gap-6 mt-10 relative">
+            {/* Connecting line */}
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 transform -translate-y-1/2 hidden md:block" style={{ zIndex: 0 }}></div>
+            
+            <div className="flex flex-col items-center text-center relative z-10">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-cyan-400 rounded-full flex items-center justify-center mb-5 text-xl font-bold shadow-lg">1</div>
+              <h4 className="font-semibold text-blue-300 mb-2">Submit Requirements</h4>
+              <p className="text-slate-300 text-sm">Upload RFQ with detailed AI hardware specs, frameworks, and workload characteristics</p>
             </div>
             
-            <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-xl font-bold">2</div>
-              <p className="text-slate-700">AI extracts key requirements and specifications</p>
+            <div className="flex flex-col items-center text-center relative z-10">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-cyan-400 rounded-full flex items-center justify-center mb-5 text-xl font-bold shadow-lg">2</div>
+              <h4 className="font-semibold text-blue-300 mb-2">AI Analysis</h4>
+              <p className="text-slate-300 text-sm">Our AI extracts technical requirements, memory needs, power specs, and framework dependencies</p>
             </div>
             
-            <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-xl font-bold">3</div>
-              <p className="text-slate-700">Platform matches with suitable suppliers</p>
+            <div className="flex flex-col items-center text-center relative z-10">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-cyan-400 rounded-full flex items-center justify-center mb-5 text-xl font-bold shadow-lg">3</div>
+              <h4 className="font-semibold text-blue-300 mb-2">Compliance Check</h4>
+              <p className="text-slate-300 text-sm">Verify export regulations, regional availability, and certifications for your location</p>
             </div>
             
-            <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-xl font-bold">4</div>
-              <p className="text-slate-700">Suppliers are scored based on your criteria</p>
+            <div className="flex flex-col items-center text-center relative z-10">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-cyan-400 rounded-full flex items-center justify-center mb-5 text-xl font-bold shadow-lg">4</div>
+              <h4 className="font-semibold text-blue-300 mb-2">Advanced Scoring</h4>
+              <p className="text-slate-300 text-sm">Hardware options ranked by performance benchmarks, framework compatibility, and value</p>
             </div>
             
-            <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-xl font-bold">5</div>
-              <p className="text-slate-700">Tailored proposals are generated and ready to send</p>
+            <div className="flex flex-col items-center text-center relative z-10">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-cyan-400 rounded-full flex items-center justify-center mb-5 text-xl font-bold shadow-lg">5</div>
+              <h4 className="font-semibold text-blue-300 mb-2">Proposal Generation</h4>
+              <p className="text-slate-300 text-sm">Receive detailed supplier communications with technical specs and procurement details</p>
+            </div>
+          </div>
+          
+          <div className="mt-12 bg-slate-800/50 p-4 rounded-lg">
+            <div className="flex items-center text-cyan-400 mb-2">
+              <Shield className="w-5 h-5 mr-2" />
+              <h4 className="text-sm font-semibold">AI Hardware Platform Benefits</h4>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4 text-xs">
+              <div className="bg-slate-800 p-3 rounded">
+                <span className="text-blue-300 font-medium">50%</span> faster procurement process
+              </div>
+              <div className="bg-slate-800 p-3 rounded">
+                <span className="text-blue-300 font-medium">100%</span> export compliance verification
+              </div>
+              <div className="bg-slate-800 p-3 rounded">
+                <span className="text-blue-300 font-medium">30%</span> better performance/price ratio
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 px-6 bg-gradient-to-r from-primary/20 to-primary/5">
+      <section className="py-20 px-6 bg-gradient-to-br from-blue-50 to-cyan-50">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-6">Try it now – Find the perfect supplier today!</h2>
-          <p className="text-xl mb-6 text-slate-700">
-            Upload your RFQ and let MatchPoint do the hard work for you.
+          <h2 className="text-3xl md:text-4xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
+            Accelerate Your AI Hardware Procurement
+          </h2>
+          <p className="text-xl mb-8 text-slate-700">
+            Get the optimal AI accelerators for your machine learning workloads with our 
+            specialized platform that handles technical evaluation, compliance, and supplier matching.
           </p>
           
           {/* Demo Mode Toggle */}
-          <div className="flex items-center justify-center mb-8 bg-white p-4 rounded-lg shadow-sm max-w-md mx-auto">
+          <div className="flex items-center justify-center mb-10 bg-white p-5 rounded-lg shadow-lg max-w-md mx-auto border border-blue-100">
             <div className="flex items-center space-x-2 mr-4">
-              <FaLaptop className="text-primary" />
-              <Label htmlFor="demo-mode" className="text-base font-medium">
+              <Cpu className="text-blue-500 w-5 h-5" />
+              <Label htmlFor="demo-mode" className="text-base font-medium text-blue-800">
                 Demo Mode
               </Label>
             </div>
@@ -306,47 +408,86 @@ export default function Landing() {
               id="demo-mode"
               checked={isDemoMode}
               onCheckedChange={toggleDemoMode}
+              className="data-[state=checked]:bg-blue-600"
             />
-            <p className="ml-4 text-sm text-gray-500">
+            <p className="ml-4 text-sm text-slate-600">
               {isDemoMode 
-                ? "Using sample data for demonstration" 
+                ? "Using AI hardware sample data" 
                 : "Using real-time processing"
               }
             </p>
           </div>
           
-          <Button 
-            size="lg" 
-            className="text-lg px-8 py-6"
-            onClick={() => navigate("/upload")}
-          >
-            Get Started
-          </Button>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-6 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
+              onClick={() => navigate("/upload")}
+            >
+              Start AI Hardware Procurement
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              className="text-lg px-8 py-6 border-blue-300 text-blue-700 hover:bg-blue-50"
+              onClick={() => navigate("/ai-hardware")}
+            >
+              Explore Platform Features
+            </Button>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 bg-slate-900 text-white">
+      <footer className="py-16 px-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-6 md:mb-0">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                MatchPoint
+            <div className="mb-8 md:mb-0">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent flex items-center">
+                <Cpu className="mr-2 h-6 w-6 text-cyan-400" />
+                AI Hardware Matchpoint
               </h2>
               <p className="text-slate-300 mt-2">
-                AI-powered supplier matching for any industry
+                Specialized AI accelerator procurement platform
               </p>
+              <div className="flex mt-4 space-x-3">
+                <div className="bg-slate-800 px-2 py-1 rounded text-xs text-blue-300">GPU</div>
+                <div className="bg-slate-800 px-2 py-1 rounded text-xs text-blue-300">TPU</div>
+                <div className="bg-slate-800 px-2 py-1 rounded text-xs text-blue-300">NPU</div>
+                <div className="bg-slate-800 px-2 py-1 rounded text-xs text-blue-300">IPU</div>
+              </div>
             </div>
             
-            <div className="flex space-x-6">
-              <a href="#" className="text-white hover:text-primary transition-colors">Privacy Policy</a>
-              <a href="#" className="text-white hover:text-primary transition-colors">Terms of Service</a>
-              <a href="#" className="text-white hover:text-primary transition-colors">Contact Us</a>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-12 gap-y-4 text-center md:text-left">
+              <div>
+                <h3 className="text-sm font-semibold text-cyan-400 mb-3">Platform</h3>
+                <ul className="space-y-2 text-sm">
+                  <li><a href="#" className="text-slate-300 hover:text-white transition-colors">Features</a></li>
+                  <li><a href="#" className="text-slate-300 hover:text-white transition-colors">Compliance</a></li>
+                  <li><a href="#" className="text-slate-300 hover:text-white transition-colors">Benchmarks</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-cyan-400 mb-3">Resources</h3>
+                <ul className="space-y-2 text-sm">
+                  <li><a href="#" className="text-slate-300 hover:text-white transition-colors">Documentation</a></li>
+                  <li><a href="#" className="text-slate-300 hover:text-white transition-colors">API</a></li>
+                  <li><a href="#" className="text-slate-300 hover:text-white transition-colors">Support</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-cyan-400 mb-3">Legal</h3>
+                <ul className="space-y-2 text-sm">
+                  <li><a href="#" className="text-slate-300 hover:text-white transition-colors">Privacy Policy</a></li>
+                  <li><a href="#" className="text-slate-300 hover:text-white transition-colors">Terms of Service</a></li>
+                  <li><a href="#" className="text-slate-300 hover:text-white transition-colors">Contact Us</a></li>
+                </ul>
+              </div>
             </div>
           </div>
           
-          <div className="mt-8 text-center text-slate-400">
-            <p>© {new Date().getFullYear()} MatchPoint. All rights reserved.</p>
+          <div className="mt-12 pt-8 border-t border-slate-700/50 text-center text-slate-400">
+            <p>© {new Date().getFullYear()} AI Hardware Matchpoint. All rights reserved.</p>
           </div>
         </div>
       </footer>
