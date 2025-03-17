@@ -6,6 +6,8 @@ import {
   proposals, type Proposal, type InsertProposal,
   type ExtractedRequirement, type SupplierMatch, type EmailTemplate
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 // Storage interface
 export interface IStorage {
@@ -325,4 +327,146 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// DatabaseStorage implementation using Drizzle ORM
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        ...insertUser,
+        company: insertUser.company ?? null,
+        country: insertUser.country ?? null,
+        industry: insertUser.industry ?? null
+      })
+      .returning();
+    return user;
+  }
+
+  async createRfq(insertRfq: InsertRfq): Promise<Rfq> {
+    const [rfq] = await db
+      .insert(rfqs)
+      .values({
+        ...insertRfq,
+        description: insertRfq.description ?? null,
+        userId: insertRfq.userId ?? null,
+        useCase: insertRfq.useCase ?? null,
+        budget: insertRfq.budget ?? null,
+        deadline: insertRfq.deadline ?? null
+      })
+      .returning();
+    return rfq;
+  }
+
+  async getRfqById(id: number): Promise<Rfq | undefined> {
+    const [rfq] = await db.select().from(rfqs).where(eq(rfqs.id, id));
+    return rfq || undefined;
+  }
+
+  async getAllRfqs(): Promise<Rfq[]> {
+    return await db.select().from(rfqs);
+  }
+
+  async createSupplier(insertSupplier: InsertSupplier): Promise<Supplier> {
+    const [supplier] = await db
+      .insert(suppliers)
+      .values({
+        ...insertSupplier,
+        country: insertSupplier.country ?? null,
+        description: insertSupplier.description ?? null,
+        deliveryTime: insertSupplier.deliveryTime ?? null,
+        isVerified: insertSupplier.isVerified ?? false,
+        logoUrl: insertSupplier.logoUrl ?? null,
+        website: insertSupplier.website ?? null,
+        contactEmail: insertSupplier.contactEmail ?? null,
+        contactPhone: insertSupplier.contactPhone ?? null,
+        complianceStatus: insertSupplier.complianceStatus ?? null,
+        stockAvailability: insertSupplier.stockAvailability ?? null,
+        leadTime: insertSupplier.leadTime ?? null,
+        minOrderQuantity: insertSupplier.minOrderQuantity ?? null,
+        dataSourceUrl: insertSupplier.dataSourceUrl ?? null,
+        lastUpdated: new Date()
+      })
+      .returning();
+    return supplier;
+  }
+
+  async getSupplierById(id: number): Promise<Supplier | undefined> {
+    const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, id));
+    return supplier || undefined;
+  }
+
+  async getAllSuppliers(): Promise<Supplier[]> {
+    return await db.select().from(suppliers);
+  }
+
+  async createProduct(insertProduct: InsertProduct): Promise<Product> {
+    const [product] = await db
+      .insert(products)
+      .values({
+        ...insertProduct,
+        type: insertProduct.type ?? null,
+        manufacturer: insertProduct.manufacturer ?? null,
+        model: insertProduct.model ?? null,
+        architecture: insertProduct.architecture ?? null,
+        warranty: insertProduct.warranty ?? null,
+        leadTime: insertProduct.leadTime ?? null,
+        inStock: insertProduct.inStock ?? true,
+        dataSourceUrl: insertProduct.dataSourceUrl ?? null,
+        quantityAvailable: insertProduct.quantityAvailable ?? null,
+        lastPriceUpdate: new Date()
+      })
+      .returning();
+    return product;
+  }
+
+  async getProductById(id: number): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product || undefined;
+  }
+
+  async getProductsBySupplier(supplierId: number): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.supplierId, supplierId));
+  }
+
+  async getProductsByCategory(category: string): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.category, category));
+  }
+
+  async createProposal(insertProposal: InsertProposal): Promise<Proposal> {
+    const [proposal] = await db
+      .insert(proposals)
+      .values({
+        ...insertProposal,
+        rfqId: insertProposal.rfqId ?? null,
+        productId: insertProposal.productId ?? null,
+        emailContent: insertProposal.emailContent ?? null,
+        alternatives: insertProposal.alternatives ?? null,
+        estimatedDeliveryDate: insertProposal.estimatedDeliveryDate ?? null,
+        pricingNotes: insertProposal.pricingNotes ?? null
+      })
+      .returning();
+    return proposal;
+  }
+
+  async getProposalById(id: number): Promise<Proposal | undefined> {
+    const [proposal] = await db.select().from(proposals).where(eq(proposals.id, id));
+    return proposal || undefined;
+  }
+
+  async getProposalsByRfq(rfqId: number): Promise<Proposal[]> {
+    return await db.select().from(proposals).where(eq(proposals.rfqId, rfqId));
+  }
+}
+
+// Use the database storage implementation
+export const storage = new DatabaseStorage();
