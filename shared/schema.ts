@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, json, float, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, json, boolean, timestamp, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -35,7 +35,7 @@ export const rfqs = pgTable("rfqs", {
   userId: integer("user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   useCase: text("use_case"),
-  budget: float("budget"),
+  budget: doublePrecision("budget"),
   deadline: timestamp("deadline"),
   complianceRequirements: json("compliance_requirements"),
 });
@@ -110,7 +110,7 @@ export const products = pgTable("products", {
   computeSpecs: json("compute_specs"), // Performance details
   memorySpecs: json("memory_specs"), // Memory specifications
   powerConsumption: json("power_consumption"), // Power requirements
-  price: float("price").notNull(),
+  price: doublePrecision("price").notNull(),
   warranty: text("warranty"),
   architecture: text("architecture"), // e.g., "Ampere", "Hopper"
   supportedFrameworks: json("supported_frameworks"), // e.g., TensorFlow, PyTorch
@@ -154,12 +154,12 @@ export const proposals = pgTable("proposals", {
   id: serial("id").primaryKey(),
   rfqId: integer("rfq_id").references(() => rfqs.id),
   productId: integer("product_id").references(() => products.id),
-  score: float("score").notNull(),
-  priceScore: float("price_score").notNull(),
-  performanceScore: float("performance_score").notNull(),
-  compatibilityScore: float("compatibility_score").notNull(),
-  availabilityScore: float("availability_score").notNull(),
-  complianceScore: float("compliance_score").notNull(),
+  score: doublePrecision("score").notNull(),
+  priceScore: doublePrecision("price_score").notNull(),
+  performanceScore: doublePrecision("performance_score").notNull(),
+  compatibilityScore: doublePrecision("compatibility_score").notNull(),
+  availabilityScore: doublePrecision("availability_score").notNull(),
+  complianceScore: doublePrecision("compliance_score").notNull(),
   emailContent: text("email_content"),
   createdAt: timestamp("created_at").defaultNow(),
   alternatives: json("alternatives"), // Alternative product suggestions

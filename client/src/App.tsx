@@ -15,6 +15,7 @@ import SendProposals from "@/pages/send-proposals";
 import AIHardwarePlatform from "@/pages/ai-hardware-platform";
 import { Button } from "@/components/ui/button";
 import { Beaker, Cpu } from "lucide-react";
+import { useEffect } from "react";
 
 // Demo Mode Toggle Button
 function DemoModeToggle() {
@@ -42,34 +43,37 @@ function RouterContent() {
   // Get current step from URL and update context if needed
   const currentPath = location.split('/')[1] || '';
   
-  // Determine step based on URL path
-  let urlStep = 1;
-  
-  switch (currentPath) {
-    case '':
-    case 'upload':
-      urlStep = 1;
-      break;
-    case 'review':
-      urlStep = 2;
-      break;
-    case 'match':
-      urlStep = 3;
-      break;
-    case 'score':
-      urlStep = 4;
-      break;
-    case 'proposals':
-      urlStep = 5;
-      break;
-    default:
-      urlStep = 1;
-  }
-  
-  // Update context if URL step is different
-  if (urlStep !== currentStep) {
-    setCurrentStep(urlStep);
-  }
+  // Use useEffect to update the step based on the URL
+  useEffect(() => {
+    // Determine step based on URL path
+    let urlStep = 1;
+    
+    switch (currentPath) {
+      case '':
+      case 'upload':
+        urlStep = 1;
+        break;
+      case 'review':
+        urlStep = 2;
+        break;
+      case 'match':
+        urlStep = 3;
+        break;
+      case 'score':
+        urlStep = 4;
+        break;
+      case 'proposals':
+        urlStep = 5;
+        break;
+      default:
+        urlStep = 1;
+    }
+    
+    // Update context if URL step is different
+    if (urlStep !== currentStep) {
+      setCurrentStep(urlStep);
+    }
+  }, [location, currentStep, setCurrentStep, currentPath]);
   
   // Only show the header and stepper for the RFQ workflow pages
   const isLandingPage = location === "/";
