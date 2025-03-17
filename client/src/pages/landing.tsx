@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { FaBolt, FaSearch, FaChartBar, FaFileAlt, FaLaptop } from "react-icons/fa";
+import { FaBolt, FaSearch, FaChartBar, FaFileAlt, FaLaptop, FaMicrochip } from "react-icons/fa";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Cpu } from "lucide-react";
 import { useDemoMode } from "@/context/demo-context";
 
 export default function Landing() {
@@ -127,6 +128,121 @@ export default function Landing() {
                 Generates professional email templates with product details, 
                 quantities, and pricing extracted from RFQs.
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* AI Hardware Platform Section */}
+      <section className="py-16 px-6 bg-gradient-to-b from-white to-slate-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-slate-900 p-8 rounded-lg shadow-xl text-white overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/30 to-purple-500/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-green-500/20 to-cyan-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3"></div>
+            
+            <div className="grid md:grid-cols-2 gap-8 items-center relative z-10">
+              <div>
+                <div className="flex items-center mb-4">
+                  <Cpu className="text-cyan-400 mr-2 h-6 w-6" />
+                  <span className="text-cyan-400 uppercase tracking-wider text-sm font-semibold">New Platform</span>
+                </div>
+                
+                <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                  Specialized AI Hardware Procurement Platform
+                </h2>
+                
+                <p className="text-slate-300 mb-6">
+                  Finding the right AI accelerators and GPUs for your machine learning workloads is complex.
+                  Our specialized platform handles compliance checks, performance benchmarking, and global sourcing
+                  to match you with the perfect hardware solutions.
+                </p>
+                
+                <div className="flex flex-wrap gap-4 mb-6">
+                  <div className="bg-slate-800 px-3 py-1 rounded-full text-xs text-slate-300 flex items-center">
+                    <FaMicrochip className="mr-1 text-cyan-500" />
+                    GPU Matching
+                  </div>
+                  <div className="bg-slate-800 px-3 py-1 rounded-full text-xs text-slate-300 flex items-center">
+                    <FaMicrochip className="mr-1 text-cyan-500" />
+                    Export Compliance
+                  </div>
+                  <div className="bg-slate-800 px-3 py-1 rounded-full text-xs text-slate-300 flex items-center">
+                    <FaMicrochip className="mr-1 text-cyan-500" />
+                    Performance Benchmarks
+                  </div>
+                </div>
+                
+                <Button 
+                  variant="outline" 
+                  className="text-white border-cyan-500 hover:bg-cyan-500/20"
+                  onClick={() => navigate("/ai-hardware")}
+                >
+                  Explore AI Hardware Platform
+                </Button>
+              </div>
+              
+              <div>
+                <div className="relative bg-slate-800 p-4 rounded-lg shadow-lg">
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-lg opacity-50"></div>
+                  <div className="relative">
+                    <div className="bg-slate-700 rounded p-3 mb-4">
+                      <div className="flex justify-between text-xs text-slate-400 mb-2">
+                        <span>GPU Performance Comparison</span>
+                        <span>TFLOPs</span>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-cyan-400">NVIDIA A100</span>
+                            <span className="text-slate-300">312 TFLOPs</span>
+                          </div>
+                          <div className="w-full bg-slate-600 rounded-full h-2">
+                            <div className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full" style={{ width: '85%' }}></div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-cyan-400">AMD MI250X</span>
+                            <span className="text-slate-300">383 TFLOPs</span>
+                          </div>
+                          <div className="w-full bg-slate-600 rounded-full h-2">
+                            <div className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full" style={{ width: '95%' }}></div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-cyan-400">Intel Gaudi2</span>
+                            <span className="text-slate-300">197 TFLOPs</span>
+                          </div>
+                          <div className="w-full bg-slate-600 rounded-full h-2">
+                            <div className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full" style={{ width: '65%' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-slate-400 mb-1">Regional Availability</div>
+                    <div className="bg-slate-700 p-3 rounded grid grid-cols-2 gap-2">
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                        <span className="text-xs text-slate-300">North America</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                        <span className="text-xs text-slate-300">Europe</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>
+                        <span className="text-xs text-slate-300">Asia Pacific</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                        <span className="text-xs text-slate-300">Restricted Regions</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

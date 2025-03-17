@@ -74,6 +74,9 @@ function RouterContent() {
   // Only show the header and stepper for the RFQ workflow pages
   const isLandingPage = location === "/";
   
+  // Check if we're on the AI hardware platform page
+  const isAIHardwarePage = location === "/ai-hardware";
+  
   if (isLandingPage) {
     return (
       <>
@@ -81,6 +84,26 @@ function RouterContent() {
         <Switch>
           <Route path="/" component={Landing} />
           <Route component={NotFound} />
+        </Switch>
+      </>
+    );
+  }
+  
+  // Special case for AI Hardware Platform - render without stepper
+  if (isAIHardwarePage) {
+    return (
+      <>
+        <DemoModeToggle />
+        <Button
+          variant="outline"
+          size="sm"
+          className="fixed top-4 left-4 z-50 flex items-center gap-2"
+          onClick={() => window.location.href = "/"}
+        >
+          Back to Home
+        </Button>
+        <Switch>
+          <Route path="/ai-hardware" component={AIHardwarePlatform} />
         </Switch>
       </>
     );

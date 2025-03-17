@@ -1,823 +1,981 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Select, 
-  SelectContent, 
-  SelectGroup, 
-  SelectItem, 
-  SelectLabel, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { 
-  Table, 
-  TableBody, 
-  TableCaption, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "@/components/ui/tabs";
-import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { Cpu, Server, ChevronRight, Globe, Shield, Zap, Award, Check, X, Clock, ArrowUpDown, Download, Activity } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
-import { apiRequest } from '@/lib/queryClient';
-import { formatCurrency } from '@/lib/supplier-service';
+// Types for our GPU/AI Hardware products
+interface ComputeSpecs {
+  tensorFlops?: number;
+  fp32Performance?: number; 
+  fp16Performance?: number;
+  int8Performance?: number;
+  tensorCores?: number;
+  cudaCores?: number;
+  clockSpeed?: number;
+}
 
-const AIHardwarePlatform = () => {
-  const [location, setLocation] = useLocation();
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('search');
-  const [aiProducts, setAIProducts] = useState<any[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
-  const [rfqContent, setRfqContent] = useState('');
-  const [buyerCountry, setBuyerCountry] = useState('United States');
-  const [complianceResult, setComplianceResult] = useState<any>(null);
-  const [performanceMetric, setPerformanceMetric] = useState('fp32');
-  const [performanceData, setPerformanceData] = useState<any>(null);
-  const [frameworks, setFrameworks] = useState<string[]>(['TensorFlow', 'PyTorch']);
+interface MemorySpecs {
+  capacity: number;
+  type: string;
+  bandwidth: number;
+  busWidth: number;
+  eccSupport?: boolean;
+}
 
-  // Initialize with sample data
-  useEffect(() => {
-    fetchAIHardwareProducts();
-  }, []);
+interface PowerSpecs {
+  tdp: number;
+  requiredPsu?: number;
+  powerConnectors?: string;
+}
 
-  // Fetch AI hardware products
-  const fetchAIHardwareProducts = async () => {
-    setLoading(true);
-    try {
-      const response = await apiRequest({
-        url: '/api/products?category=GPU',
-        method: 'GET',
-      });
+interface ComplianceInfo {
+  exportRestrictions?: string[];
+  certifications?: string[];
+  restrictedCountries?: string[];
+}
 
-      if (response.ok) {
-        const data = await response.json();
-        setAIProducts(data);
-      } else {
-        const error = await response.text();
-        toast({
-          title: 'Error fetching products',
-          description: error || 'Could not fetch AI hardware products',
-          variant: 'destructive',
-        });
+interface Benchmarks {
+  mlTraining?: Record<string, number>;
+  llmInference?: Record<string, number>;
+  computerVision?: Record<string, number>;
+}
+
+interface AIHardwareProduct {
+  id: number;
+  supplierId: number;
+  name: string;
+  model: string;
+  manufacturer: string;
+  category: string;
+  description: string;
+  price: number;
+  computeSpecs: ComputeSpecs;
+  memorySpecs: MemorySpecs;
+  powerSpecs: PowerSpecs;
+  thermalSpecs?: {
+    cooling: string;
+    maxTemp: number;
+  };
+  connectivity: string[];
+  supportedFrameworks: string[];
+  formFactor: string;
+  complianceInfo: ComplianceInfo;
+  benchmarks?: Benchmarks;
+  availability: string;
+  warranty: string;
+  releaseDate: string;
+  imageUrl?: string;
+  inStock: boolean;
+}
+
+interface ComplianceCheckResult {
+  allowed: boolean;
+  riskLevel: string;
+  notes: string;
+  requiredActions: string[];
+}
+
+// Dummy data for the frontend UI prototype
+const frameworks = [
+  "PyTorch", "TensorFlow", "JAX", "ONNX", "DirectML", "CUDA", "ROCm", "OpenVINO"
+];
+
+const manufacturers = [
+  "NVIDIA", "AMD", "Intel", "Cerebras", "SambaNova", "Graphcore", "Habana Labs", "Qualcomm"
+];
+
+const countries = [
+  { code: "US", name: "United States" },
+  { code: "EU", name: "European Union" },
+  { code: "CN", name: "China" },
+  { code: "JP", name: "Japan" },
+  { code: "KR", name: "South Korea" },
+  { code: "IN", name: "India" },
+  { code: "RU", name: "Russia" },
+  { code: "SG", name: "Singapore" },
+  { code: "AE", name: "United Arab Emirates" }
+];
+
+export default function AIHardwarePlatform() {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("explore");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedManufacturers, setSelectedManufacturers] = useState<string[]>([]);
+  const [selectedFrameworks, setSelectedFrameworks] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(100000);
+  const [complianceCountry, setComplianceCountry] = useState("US");
+  const [productToCheck, setProductToCheck] = useState<number | null>(null);
+
+  // Query to get AI hardware products
+  const { data: products, isLoading: isLoadingProducts } = useQuery<AIHardwareProduct[], Error>({
+    queryKey: ["/api/products", "AI Hardware"],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("/api/products?category=AI%20Hardware", {
+          method: "GET"
+        } as any);
+        return response as unknown as AIHardwareProduct[];
+      } catch (error) {
+        console.error("Failed to fetch AI hardware products:", error);
+        return [] as AIHardwareProduct[];
       }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Something went wrong while fetching products',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    refetchOnWindowFocus: false
+  });
 
-  // Seed sample AI hardware products
-  const seedSampleProducts = async () => {
-    setLoading(true);
-    try {
-      const response = await apiRequest({
-        url: '/api/seed-ai-hardware-products',
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast({
-          title: 'Success',
-          description: data.message || 'Sample products added successfully',
-        });
-        fetchAIHardwareProducts();
-      } else {
-        const error = await response.text();
-        toast({
-          title: 'Error seeding products',
-          description: error || 'Could not seed sample products',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Something went wrong while seeding products',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Check compliance for a product
-  const checkCompliance = async (productId: number) => {
-    setLoading(true);
-    try {
-      const response = await apiRequest({
-        url: `/api/ai-hardware/check-compliance?buyer_country=${encodeURIComponent(buyerCountry)}&product_id=${productId}`,
-        method: 'GET',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setComplianceResult(data);
-        // Switch to compliance tab
-        setActiveTab('compliance');
-      } else {
-        const error = await response.text();
-        toast({
-          title: 'Error checking compliance',
-          description: error || 'Could not check compliance',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Something went wrong while checking compliance',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Compare performance of selected products
-  const comparePerformance = async () => {
-    if (selectedProducts.length < 2) {
-      toast({
-        title: 'Warning',
-        description: 'Please select at least 2 products to compare',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const productIds = selectedProducts.map(p => p.id);
-      const response = await apiRequest({
-        url: `/api/ai-hardware/performance-comparison?product_ids=${productIds.join(',')}&metric=${performanceMetric}`,
-        method: 'GET',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setPerformanceData(data);
-        // Switch to performance tab
-        setActiveTab('comparison');
-      } else {
-        const error = await response.text();
-        toast({
-          title: 'Error comparing performance',
-          description: error || 'Could not compare performance',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Something went wrong while comparing performance',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Check framework compatibility
-  const checkFrameworksCompatibility = async (productId: number) => {
-    setLoading(true);
-    try {
-      const response = await apiRequest({
-        url: `/api/ai-hardware/frameworks-compatibility?product_id=${productId}&frameworks=${frameworks.join(',')}`,
-        method: 'GET',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast({
-          title: 'Framework Compatibility',
-          description: `Compatibility score: ${Math.round(data.compatibilityScore * 100)}%. ${
-            data.compatibilityScore >= 0.8 
-              ? 'This product has excellent framework compatibility.' 
-              : data.compatibilityScore >= 0.5 
-                ? 'This product has good framework compatibility.' 
-                : 'This product has limited framework compatibility.'
-          }`,
-        });
-      } else {
-        const error = await response.text();
-        toast({
-          title: 'Error checking framework compatibility',
-          description: error || 'Could not check framework compatibility',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Something went wrong while checking framework compatibility',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Create RFQ
-  const createRFQ = async () => {
-    if (!rfqContent.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please enter RFQ content',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await apiRequest({
-        url: '/api/rfqs',
-        method: 'POST',
-        body: JSON.stringify({
-          title: "AI Hardware Procurement RFQ",
-          description: "Request for quotation for AI computing hardware",
-          specifications: rfqContent
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast({
-          title: 'Success',
-          description: 'RFQ created successfully',
-        });
-        
-        // Redirect to RFQ review page
-        setLocation(`/review-requirements?rfqId=${data.id}`);
-      } else {
-        const error = await response.text();
-        toast({
-          title: 'Error creating RFQ',
-          description: error || 'Could not create RFQ',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Something went wrong while creating RFQ',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Toggle product selection for comparison
-  const toggleProductSelection = (product: any) => {
-    const isSelected = selectedProducts.some(p => p.id === product.id);
-    if (isSelected) {
-      setSelectedProducts(selectedProducts.filter(p => p.id !== product.id));
-    } else {
-      setSelectedProducts([...selectedProducts, product]);
-    }
-  };
-
-  // Extract specification value from product - handles both simple specs and nested objects
-  const getSpecValue = (product: any, specPath: string) => {
-    const pathParts = specPath.split('.');
-    let current: any = product;
-    
-    for (const part of pathParts) {
-      if (!current || typeof current !== 'object') return 'N/A';
+  // Query for compliance check results
+  const { data: complianceResult, isLoading: isCheckingCompliance } = useQuery<ComplianceCheckResult | null, Error>({
+    queryKey: ["/api/compliance", complianceCountry, productToCheck],
+    queryFn: async () => {
+      if (!productToCheck) return null;
       
-      // Handle JSON stored as string
-      if (typeof current === 'string' && part === pathParts[0]) {
-        try {
-          current = JSON.parse(current);
-        } catch {
-          return 'N/A';
-        }
+      try {
+        const response = await apiRequest(`/api/compliance?country=${complianceCountry}&productId=${productToCheck}`, { 
+          method: "GET" 
+        }) as unknown;
+        return response as ComplianceCheckResult;
+      } catch (error) {
+        console.error("Failed to check compliance:", error);
+        return null;
       }
-      
-      current = current[part];
-    }
-    
-    return current ?? 'N/A';
+    },
+    enabled: !!productToCheck,
+    refetchOnWindowFocus: false
+  });
+
+  // Function to check compliance for a specific product
+  const checkCompliance = (productId: number) => {
+    setProductToCheck(productId);
+    setActiveTab("compliance");
   };
 
-  // Format specification value with appropriate unit
-  const formatSpecValue = (value: any, unit: string = '') => {
-    if (value === 'N/A' || value === null || value === undefined) return 'N/A';
+  // Function to filter products based on search and filters
+  const filteredProducts = products?.filter(product => {
+    // Search filter
+    const matchesSearch = 
+      searchQuery === "" || 
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.manufacturer.toLowerCase().includes(searchQuery.toLowerCase());
     
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
+    // Manufacturer filter
+    const matchesManufacturer = 
+      selectedManufacturers.length === 0 || 
+      selectedManufacturers.includes(product.manufacturer);
+    
+    // Framework filter
+    const matchesFramework = 
+      selectedFrameworks.length === 0 || 
+      selectedFrameworks.some(fw => product.supportedFrameworks.includes(fw));
+    
+    // Price filter
+    const matchesPrice = 
+      product.price >= minPrice && product.price <= maxPrice;
+    
+    return matchesSearch && matchesManufacturer && matchesFramework && matchesPrice;
+  }) || [];
+
+  // Format large numbers with commas
+  const formatNumber = (num: number): string => {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  // Format a performance metric with the appropriate unit
+  const formatPerformance = (value: number | undefined, unit: string): string => {
+    if (value === undefined) return "N/A";
+    return `${formatNumber(value)} ${unit}`;
+  };
+
+  // Helper to get compliance status badge
+  const getComplianceBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "low":
+        return <Badge className="bg-green-500">Low Risk</Badge>;
+      case "medium":
+        return <Badge className="bg-yellow-500">Medium Risk</Badge>;
+      case "high":
+        return <Badge className="bg-orange-500">High Risk</Badge>;
+      case "critical":
+        return <Badge className="bg-red-500">Critical Risk</Badge>;
+      default:
+        return <Badge>Unknown</Badge>;
     }
-    
-    if (typeof value === 'number') {
-      if (unit === 'GB') return `${value} GB`;
-      if (unit === 'GB/s') return `${value} GB/s`;
-      if (unit === 'W') return `${value}W`;
-      if (unit === 'TFLOPS') return `${value} TFLOPS`;
-      if (unit === 'TOPS') return `${value} TOPS`;
-    }
-    
-    return value.toString();
   };
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          AI Hardware Procurement Platform
-        </h1>
-        <Button onClick={seedSampleProducts} variant="outline" disabled={loading}>
-          {loading ? 'Loading...' : 'Load Sample GPUs'}
-        </Button>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="search">Search Products</TabsTrigger>
-          <TabsTrigger value="rfq">Create RFQ</TabsTrigger>
-          <TabsTrigger value="compliance">Compliance Check</TabsTrigger>
-          <TabsTrigger value="comparison">Performance Comparison</TabsTrigger>
-        </TabsList>
+    <div className="min-h-screen bg-slate-50">
+      {/* Hero Section */}
+      <section className="relative bg-slate-900 py-20 px-6 text-white overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full opacity-20 blur-3xl"></div>
+          <div className="absolute top-20 -left-20 w-80 h-80 bg-purple-500 rounded-full opacity-10 blur-3xl"></div>
+          <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-cyan-500 rounded-full opacity-10 blur-3xl"></div>
+        </div>
         
-        {/* Search Products Tab */}
-        <TabsContent value="search" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Hardware Products</CardTitle>
-              <CardDescription>
-                Browse available GPU and AI accelerator products for your machine learning workloads
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 flex items-center space-x-2">
-                <Label htmlFor="buyer-country">Buyer Country:</Label>
-                <Select value={buyerCountry} onValueChange={setBuyerCountry}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Countries</SelectLabel>
-                      <SelectItem value="United States">United States</SelectItem>
-                      <SelectItem value="China">China</SelectItem>
-                      <SelectItem value="Russia">Russia</SelectItem>
-                      <SelectItem value="European Union">European Union</SelectItem>
-                      <SelectItem value="India">India</SelectItem>
-                      <SelectItem value="Japan">Japan</SelectItem>
-                      <SelectItem value="South Korea">South Korea</SelectItem>
-                      <SelectItem value="Taiwan">Taiwan</SelectItem>
-                      <SelectItem value="Israel">Israel</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="mb-4 flex items-center space-x-2">
-                <Label>Required ML Frameworks:</Label>
-                <div className="flex flex-wrap gap-2">
-                  {['TensorFlow', 'PyTorch', 'CUDA', 'ROCm', 'ONNX', 'TensorRT'].map(fw => (
-                    <Badge 
-                      key={fw} 
-                      variant={frameworks.includes(fw) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        if (frameworks.includes(fw)) {
-                          setFrameworks(frameworks.filter(f => f !== fw));
-                        } else {
-                          setFrameworks([...frameworks, fw]);
-                        }
-                      }}
-                    >
-                      {fw}
-                    </Badge>
-                  ))}
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="flex items-center mb-6">
+            <Cpu className="text-blue-400 mr-2" />
+            <h4 className="text-blue-400 font-medium">AI HARDWARE PROCUREMENT PLATFORM</h4>
+          </div>
+          
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            Accelerate AI Innovation with the Right Hardware
+          </h1>
+          
+          <p className="text-xl text-slate-300 max-w-3xl mb-10">
+            Navigate complex specifications, compliance requirements, and global availability to find the perfect 
+            AI accelerators for your machine learning workloads.
+          </p>
+          
+          <div className="flex flex-wrap gap-4">
+            <Button 
+              size="lg" 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => setActiveTab("explore")}
+            >
+              Explore Hardware
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="text-slate-200 border-slate-600"
+              onClick={() => setActiveTab("compliance")}
+            >
+              Check Compliance
+              <Shield className="ml-2 h-4 w-4" />
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="text-slate-200 border-slate-600"
+              onClick={() => setActiveTab("compare")}
+            >
+              Compare Performance
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </section>
+      
+      {/* Main Content */}
+      <section className="py-12 px-6">
+        <div className="max-w-7xl mx-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+            <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-3 md:grid-cols-3 gap-4">
+              <TabsTrigger value="explore" className="flex items-center">
+                <Server className="mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Explore Hardware</span>
+                <span className="md:hidden">Explore</span>
+              </TabsTrigger>
+              <TabsTrigger value="compliance" className="flex items-center">
+                <Shield className="mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Check Compliance</span>
+                <span className="md:hidden">Compliance</span>
+              </TabsTrigger>
+              <TabsTrigger value="compare" className="flex items-center">
+                <ArrowUpDown className="mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Compare Performance</span>
+                <span className="md:hidden">Compare</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Explore Hardware Tab */}
+            <TabsContent value="explore" className="space-y-8">
+              {/* Search and Filters */}
+              <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
+                <h2 className="text-2xl font-bold mb-4">Find AI Hardware</h2>
+                
+                <div className="grid md:grid-cols-4 gap-6">
+                  <div className="md:col-span-4">
+                    <Input
+                      placeholder="Search GPUs, accelerators, and AI hardware..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Manufacturer</h3>
+                    <div className="space-y-2">
+                      {manufacturers.map((manufacturer) => (
+                        <div key={manufacturer} className="flex items-center">
+                          <Checkbox 
+                            id={`manufacturer-${manufacturer}`}
+                            checked={selectedManufacturers.includes(manufacturer)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedManufacturers([...selectedManufacturers, manufacturer]);
+                              } else {
+                                setSelectedManufacturers(selectedManufacturers.filter(m => m !== manufacturer));
+                              }
+                            }}
+                          />
+                          <Label htmlFor={`manufacturer-${manufacturer}`} className="ml-2 text-sm">
+                            {manufacturer}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Framework Support</h3>
+                    <div className="space-y-2">
+                      {frameworks.slice(0, 6).map((framework) => (
+                        <div key={framework} className="flex items-center">
+                          <Checkbox 
+                            id={`framework-${framework}`}
+                            checked={selectedFrameworks.includes(framework)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedFrameworks([...selectedFrameworks, framework]);
+                              } else {
+                                setSelectedFrameworks(selectedFrameworks.filter(f => f !== framework));
+                              }
+                            }}
+                          />
+                          <Label htmlFor={`framework-${framework}`} className="ml-2 text-sm">
+                            {framework}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Price Range</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <span>${formatNumber(minPrice)}</span>
+                        <span>${formatNumber(maxPrice)}</span>
+                      </div>
+                      <Slider
+                        defaultValue={[minPrice, maxPrice]}
+                        min={0}
+                        max={100000}
+                        step={1000}
+                        onValueChange={(values) => {
+                          setMinPrice(values[0]);
+                          setMaxPrice(values[1]);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Compliance</h3>
+                    <Select value={complianceCountry} onValueChange={setComplianceCountry}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map((country) => (
+                          <SelectItem key={country.code} value={country.code}>
+                            {country.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500 mt-2">
+                      We'll show compliance information for selected products based on this country.
+                    </p>
+                  </div>
                 </div>
               </div>
               
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableCaption>
-                    {aiProducts.length 
-                      ? `Available AI Hardware Products (${aiProducts.length})` 
-                      : 'No products found. Click "Load Sample GPUs" to load sample data.'}
-                  </TableCaption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">Select</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Manufacturer</TableHead>
-                      <TableHead>Memory</TableHead>
-                      <TableHead>Performance</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {aiProducts.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <input 
-                            type="checkbox" 
-                            checked={selectedProducts.some(p => p.id === product.id)}
-                            onChange={() => toggleProductSelection(product)}
-                            className="rounded-sm"
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {product.name}
-                          {product.model ? ` (${product.model})` : ''}
-                        </TableCell>
-                        <TableCell>{product.manufacturer || 'Unknown'}</TableCell>
-                        <TableCell>
-                          {formatSpecValue(
-                            getSpecValue(product, 'memorySpecs.capacity') || 
-                            getSpecValue(product, 'specifications.Memory Size'), 
-                            'GB'
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {formatSpecValue(
-                            getSpecValue(product, 'computeSpecs.fp32Performance') || 
-                            getSpecValue(product, 'specifications.FP32'), 
-                            'TFLOPS'
-                          )}
-                        </TableCell>
-                        <TableCell>{formatCurrency(product.price)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => checkCompliance(product.id)}
-                            >
-                              Check Compliance
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => checkFrameworksCompatibility(product.id)}
-                            >
-                              Check Frameworks
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button 
-                variant="secondary"
-                onClick={fetchAIHardwareProducts}
-                disabled={loading}
-              >
-                Refresh Products
-              </Button>
-              <Button 
-                onClick={comparePerformance}
-                disabled={selectedProducts.length < 2 || loading}
-              >
-                Compare Selected ({selectedProducts.length})
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
-        {/* Create RFQ Tab */}
-        <TabsContent value="rfq" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Create AI Hardware RFQ</CardTitle>
-              <CardDescription>
-                Describe your AI hardware requirements in detail for the best supplier matches
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rfq-template">RFQ Template</Label>
-                  <Select defaultValue="gpu" onValueChange={(value) => {
-                    if (value === 'gpu') {
-                      setRfqContent(
-`Request for Quotation: Enterprise GPU Cluster for AI Research
-
-Requirements:
-- 8x AI accelerator GPUs with minimum 40GB HBM memory per device
-- Minimum FP32 performance: 20 TFLOPS per GPU
-- Supported frameworks: TensorFlow, PyTorch, CUDA 12.0
-- Power constraints: Maximum 400W TDP per GPU
-- Required connectivity: PCIe 4.0, NVLink if available
-- Form factor: Standard 2U server configuration
-- Cooling: Liquid cooling preferred
-
-Use Case:
-Training large language models and running inference workloads for NLP research.
-
-Award Criteria:
-- Price: 30%
-- Performance: 40%
-- Availability: 20%
-- Support/Warranty: 10%
-
-Desired delivery timeframe: 4-6 weeks`
-                      );
-                    } else if (value === 'cluster') {
-                      setRfqContent(
-`Request for Quotation: AI Accelerator Cluster
-
-Requirements:
-- Compute system with 16 accelerator cards
-- Each accelerator should have:
-  * Minimum 80GB memory
-  * At least 2000 GB/s memory bandwidth
-  * Support for sparse matrix operations
-  * FP16 performance of at least 120 TFLOPS
-- Complete rack solution with power distribution
-- Maximum power budget: 20kW for entire system
-- Required networking: 100 Gbps InfiniBand or equivalent
-- Storage: 100TB high-speed NVMe storage
-- Framework compatibility: PyTorch, JAX
-
-Use Case:
-Training foundation models at scale with datasets exceeding 10TB.
-
-Award Criteria:
-- Performance: 50%
-- Price: 25%
-- Reliability/Support: 15%
-- Energy Efficiency: 10%
-
-Delivery timeframe: Within 3 months`
-                      );
-                    } else if (value === 'edge') {
-                      setRfqContent(
-`Request for Quotation: Edge AI Computing Devices
-
-Requirements:
-- 25x edge AI computing modules
-- Each device must have:
-  * Minimum 8 TOPS INT8 performance
-  * Maximum 15W power consumption
-  * 4GB RAM minimum
-  * Hardware acceleration for computer vision
-  * Small form factor (maximum 100mm x 100mm x 50mm)
-- Operating temperature range: -10°C to 55°C
-- Connectivity: Ethernet, Wi-Fi, optional 5G
-- GPIO pins for sensor integration
-- Framework support: TensorFlow Lite, ONNX Runtime
-
-Use Case:
-Deploying computer vision models for retail analytics at store locations.
-
-Award Criteria:
-- Price: 40%
-- Power efficiency: 25%
-- Performance: 25%
-- Support/Documentation: 10%
-
-Required delivery: Within 6 weeks`
-                      );
-                    }
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select RFQ Template" />
+              {/* Results */}
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold">
+                    {isLoadingProducts ? "Loading products..." : `${filteredProducts.length} products found`}
+                  </h2>
+                  <Select defaultValue="relevance">
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gpu">Enterprise GPU Cluster</SelectItem>
-                      <SelectItem value="cluster">AI Accelerator Cluster</SelectItem>
-                      <SelectItem value="edge">Edge AI Computing</SelectItem>
+                      <SelectItem value="relevance">Relevance</SelectItem>
+                      <SelectItem value="price-low">Price: Low to High</SelectItem>
+                      <SelectItem value="price-high">Price: High to Low</SelectItem>
+                      <SelectItem value="performance">Performance</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rfq-content">RFQ Content</Label>
-                  <Textarea 
-                    id="rfq-content"
-                    value={rfqContent}
-                    onChange={(e) => setRfqContent(e.target.value)}
-                    placeholder="Describe your AI hardware requirements in detail..."
-                    className="min-h-[300px]"
-                  />
-                </div>
+                
+                {isLoadingProducts ? (
+                  <div className="text-center py-12">
+                    <Cpu className="animate-spin h-8 w-8 mx-auto mb-4 text-primary" />
+                    <p>Loading AI hardware products...</p>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p>No products match your filters. Try adjusting your search criteria.</p>
+                  </div>
+                ) : (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* For the demo, we'll show 6 sample cards */}
+                    {Array.from({ length: Math.min(6, filteredProducts.length) }).map((_, index) => {
+                      const product = filteredProducts[index] || {
+                        id: index,
+                        name: "NVIDIA A100 GPU",
+                        manufacturer: "NVIDIA",
+                        price: 10000,
+                        description: "High-performance GPU for AI workloads",
+                        computeSpecs: { tensorFlops: 312 },
+                        memorySpecs: { capacity: 80, type: "HBM2e", bandwidth: 2039, busWidth: 5120 },
+                        powerSpecs: { tdp: 400 },
+                        supportedFrameworks: ["PyTorch", "TensorFlow", "CUDA"],
+                        complianceInfo: {
+                          exportRestrictions: ["RU", "CN"]
+                        },
+                        inStock: Math.random() > 0.3
+                      };
+                      
+                      return (
+                        <Card key={index} className="overflow-hidden">
+                          <CardHeader className="pb-3">
+                            <div className="flex justify-between items-start">
+                              <CardTitle>{product.name}</CardTitle>
+                              {product.inStock ? (
+                                <Badge className="bg-green-500">In Stock</Badge>
+                              ) : (
+                                <Badge variant="outline">On Order</Badge>
+                              )}
+                            </div>
+                            <CardDescription>{product.manufacturer}</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">Performance</h4>
+                                <div className="flex justify-between text-sm mb-1">
+                                  <span>Tensor Performance</span>
+                                  <span className="font-medium">{formatPerformance(product.computeSpecs?.tensorFlops, "TFLOPs")}</span>
+                                </div>
+                                <Progress value={85} className="h-2" />
+                              </div>
+                              
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">Memory</h4>
+                                <div className="flex justify-between text-sm">
+                                  <span>{product.memorySpecs?.capacity}GB {product.memorySpecs?.type}</span>
+                                  <span>{product.memorySpecs?.bandwidth} GB/s</span>
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">Framework Support</h4>
+                                <div className="flex flex-wrap gap-1">
+                                  {product.supportedFrameworks.slice(0, 3).map((framework) => (
+                                    <Badge key={framework} variant="secondary" className="text-xs">{framework}</Badge>
+                                  ))}
+                                  {product.supportedFrameworks.length > 3 && (
+                                    <Badge variant="secondary" className="text-xs">+{product.supportedFrameworks.length - 3} more</Badge>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">Compliance Status</h4>
+                                {product.complianceInfo?.exportRestrictions?.includes(complianceCountry) ? (
+                                  <Badge variant="destructive" className="text-xs">
+                                    Export Restricted
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-green-500 text-xs">
+                                    Available in {countries.find(c => c.code === complianceCountry)?.name}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                          <Separator />
+                          <CardFooter className="flex justify-between pt-4">
+                            <div>
+                              <p className="text-2xl font-bold">${formatNumber(product.price)}</p>
+                              <p className="text-xs text-slate-500">Enterprise pricing</p>
+                            </div>
+                            <div className="space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => checkCompliance(product.id)}
+                              >
+                                Check Compliance
+                              </Button>
+                              <Button size="sm">Details</Button>
+                            </div>
+                          </CardFooter>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </CardContent>
-            <CardFooter>
-              <Button onClick={createRFQ} disabled={loading || !rfqContent.trim()}>
-                Create RFQ
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
-        {/* Compliance Check Tab */}
-        <TabsContent value="compliance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Regulatory Compliance Check</CardTitle>
-              <CardDescription>
-                Verify compliance with export regulations and shipping restrictions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {complianceResult ? (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-lg border bg-card">
-                    <h3 className="text-lg font-semibold mb-2">
-                      Compliance Status:
-                      <span className={
-                        complianceResult.canShip 
-                          ? "ml-2 text-green-500" 
-                          : "ml-2 text-red-500"
-                      }>
-                        {complianceResult.canShip ? 'Can Ship' : 'Restricted'}
-                      </span>
-                    </h3>
+            </TabsContent>
+            
+            {/* Compliance Check Tab */}
+            <TabsContent value="compliance" className="space-y-8">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-2xl font-bold mb-6">Export Compliance Check</h2>
+                
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Check Hardware Compliance</h3>
+                    <p className="text-slate-600 mb-6">
+                      Verify if AI hardware can be exported to your country and identify any regulatory issues or restrictions.
+                    </p>
                     
-                    {complianceResult.restrictions && complianceResult.restrictions.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="font-medium text-red-500">Restrictions:</h4>
-                        <ul className="list-disc pl-5">
-                          {complianceResult.restrictions.map((restriction: string, i: number) => (
-                            <li key={i}>{restriction}</li>
-                          ))}
-                        </ul>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="country-select">Your Country</Label>
+                        <Select value={complianceCountry} onValueChange={setComplianceCountry}>
+                          <SelectTrigger id="country-select">
+                            <SelectValue placeholder="Select your country" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map((country) => (
+                              <SelectItem key={country.code} value={country.code}>
+                                {country.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
-                    
-                    {complianceResult.requiresLicense && (
-                      <div className="mb-4">
-                        <h4 className="font-medium text-amber-500">Export License Required</h4>
-                        <p>This transaction requires an export license. Required documents:</p>
-                        <ul className="list-disc pl-5">
-                          {complianceResult.requiredDocuments.map((doc: string, i: number) => (
-                            <li key={i}>{doc}</li>
-                          ))}
-                        </ul>
+                      
+                      <div>
+                        <Label htmlFor="product-select">Select Hardware</Label>
+                        <Select
+                          value={productToCheck?.toString() || ""}
+                          onValueChange={(value) => setProductToCheck(parseInt(value))}
+                        >
+                          <SelectTrigger id="product-select">
+                            <SelectValue placeholder="Select a product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredProducts.map((product) => (
+                              <SelectItem key={product.id} value={product.id.toString()}>
+                                {product.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
+                      
+                      <Button 
+                        onClick={() => {
+                          if (!productToCheck) {
+                            toast({
+                              title: "Please select a product",
+                              description: "You need to select a product to check compliance",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          // The query will automatically run when productToCheck changes
+                          toast({
+                            title: "Checking compliance",
+                            description: "Please wait while we check compliance for this product"
+                          });
+                        }}
+                        disabled={!productToCheck || isCheckingCompliance}
+                      >
+                        {isCheckingCompliance ? "Checking..." : "Check Compliance"}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Compliance Results</h3>
                     
-                    {complianceResult.complianceReport && (
-                      <div className="mt-4">
-                        <h4 className="font-medium">Detailed Compliance Report:</h4>
-                        <div className="mt-2 space-y-2">
+                    {!productToCheck ? (
+                      <div className="bg-slate-50 rounded-lg p-6 text-center h-full flex flex-col items-center justify-center">
+                        <Shield className="h-12 w-12 text-slate-400 mb-4" />
+                        <p className="text-slate-600">Select a product and country to check compliance</p>
+                      </div>
+                    ) : isCheckingCompliance ? (
+                      <div className="bg-slate-50 rounded-lg p-6 text-center h-full flex flex-col items-center justify-center">
+                        <Shield className="h-12 w-12 text-slate-400 mb-4 animate-pulse" />
+                        <p className="text-slate-600">Checking compliance status...</p>
+                      </div>
+                    ) : complianceResult ? (
+                      <div className="bg-slate-50 rounded-lg p-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h4 className="font-medium">
+                            {filteredProducts.find(p => p.id === productToCheck)?.name || "Selected Product"}
+                          </h4>
+                          {getComplianceBadge(complianceResult.riskLevel)}
+                        </div>
+                        
+                        <div className="space-y-4">
                           <div>
-                            <span className="font-medium">Risk Level:</span>{' '}
-                            <Badge variant={
-                              complianceResult.complianceReport.overall_risk_level === 'Low' ? 'default' :
-                              complianceResult.complianceReport.overall_risk_level === 'Medium' ? 'outline' :
-                              'destructive'
-                            }>
-                              {complianceResult.complianceReport.overall_risk_level}
-                            </Badge>
+                            <h5 className="text-sm font-medium">Export Status</h5>
+                            <div className="flex items-center mt-1">
+                              {complianceResult.allowed ? (
+                                <>
+                                  <Check className="h-4 w-4 text-green-500 mr-2" />
+                                  <span className="text-green-700">
+                                    Can be exported to {countries.find(c => c.code === complianceCountry)?.name}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <X className="h-4 w-4 text-red-500 mr-2" />
+                                  <span className="text-red-700">
+                                    Export restricted to {countries.find(c => c.code === complianceCountry)?.name}
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
                           
                           <div>
-                            <span className="font-medium">Required Actions:</span>
-                            <ul className="list-disc pl-5 mt-1">
-                              {complianceResult.complianceReport.required_actions.map((action: string, i: number) => (
-                                <li key={i}>{action}</li>
-                              ))}
-                            </ul>
+                            <h5 className="text-sm font-medium">Compliance Notes</h5>
+                            <p className="text-sm mt-1">{complianceResult.notes}</p>
+                          </div>
+                          
+                          {complianceResult.requiredActions.length > 0 && (
+                            <div>
+                              <h5 className="text-sm font-medium">Required Actions</h5>
+                              <ul className="list-disc list-inside text-sm mt-1">
+                                {complianceResult.requiredActions.map((action, i) => (
+                                  <li key={i}>{action}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          <div className="pt-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                toast({
+                                  title: "Report downloaded",
+                                  description: "Compliance report has been downloaded"
+                                });
+                              }}
+                              className="w-full"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download Compliance Report
+                            </Button>
                           </div>
                         </div>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 rounded-lg p-6 text-center h-full flex flex-col items-center justify-center">
+                        <Shield className="h-12 w-12 text-orange-400 mb-4" />
+                        <p className="text-slate-600">No compliance data available</p>
                       </div>
                     )}
                   </div>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <p className="text-muted-foreground mb-4">
-                    Select a product and click "Check Compliance" to see regulatory information
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Performance Comparison Tab */}
-        <TabsContent value="comparison" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Comparison</CardTitle>
-              <CardDescription>
-                Compare the performance of selected GPU and AI accelerator products
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 flex items-center space-x-2">
-                <Label htmlFor="perf-metric">Performance Metric:</Label>
-                <Select value={performanceMetric} onValueChange={setPerformanceMetric}>
-                  <SelectTrigger className="w-[280px]">
-                    <SelectValue placeholder="Select metric" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Compute Performance</SelectLabel>
-                      <SelectItem value="fp32">FP32 Performance (TFLOPS)</SelectItem>
-                      <SelectItem value="fp16">FP16 Performance (TFLOPS)</SelectItem>
-                      <SelectItem value="int8">INT8 Performance (TOPS)</SelectItem>
-                      <SelectLabel>Memory</SelectLabel>
-                      <SelectItem value="memory_capacity">Memory Capacity (GB)</SelectItem>
-                      <SelectItem value="memory_bandwidth">Memory Bandwidth (GB/s)</SelectItem>
-                      <SelectLabel>Power</SelectLabel>
-                      <SelectItem value="tdp">Thermal Design Power (W)</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                
-                {selectedProducts.length >= 2 && (
-                  <Button 
-                    onClick={comparePerformance}
-                    disabled={loading}
-                    size="sm"
-                  >
-                    Compare
-                  </Button>
-                )}
               </div>
               
-              {performanceData ? (
-                <div className="mt-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    {performanceData.metricLabel} Comparison
-                  </h3>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-lg font-bold mb-4">Export Control Information</h2>
+                
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <h3 className="text-md font-medium">U.S. Export Controls</h3>
+                    <p className="text-sm text-slate-600">
+                      High-performance AI hardware may be subject to U.S. Export Administration Regulations (EAR).
+                      Products exceeding certain performance thresholds require export licenses.
+                    </p>
+                  </div>
                   
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Product</TableHead>
-                          <TableHead>Manufacturer</TableHead>
-                          <TableHead>{performanceData.metricLabel}</TableHead>
-                          <TableHead>Relative Performance</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {performanceData.products.map((product: any) => (
-                          <TableRow key={product.id}>
-                            <TableCell className="font-medium">{product.name}</TableCell>
-                            <TableCell>{product.manufacturer}</TableCell>
-                            <TableCell>{product.value}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center space-x-2">
-                                <div className="w-full bg-secondary rounded-full h-2.5">
-                                  <div 
-                                    className="bg-primary h-2.5 rounded-full" 
-                                    style={{ width: `${product.relativePerformance}%` }}
-                                  ></div>
-                                </div>
-                                <span>{product.relativePerformance.toFixed(0)}%</span>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                  <div className="space-y-2">
+                    <h3 className="text-md font-medium">Restricted Entities</h3>
+                    <p className="text-sm text-slate-600">
+                      Sales to entities on the U.S. Commerce Department's Entity List are restricted.
+                      Our platform automatically checks compliance with these restrictions.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-md font-medium">Technical Compliance</h3>
+                    <p className="text-sm text-slate-600">
+                      Hardware with specific technical characteristics may have additional export controls.
+                      This includes systems with high FLOPS ratings or specialized AI capabilities.
+                    </p>
                   </div>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <p className="text-muted-foreground mb-4">
-                    {selectedProducts.length < 2 
-                      ? 'Select at least 2 products to compare' 
-                      : 'Click "Compare" to see performance comparison'}
-                  </p>
+              </div>
+            </TabsContent>
+            
+            {/* Compare Performance Tab */}
+            <TabsContent value="compare" className="space-y-8">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-2xl font-bold mb-6">Performance Comparison</h2>
+                
+                <div className="grid md:grid-cols-2 gap-8 items-start">
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Select Hardware to Compare</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Performance Metric</Label>
+                        <Select defaultValue="fp32">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select metric" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fp32">FP32 Performance (TFLOPS)</SelectItem>
+                            <SelectItem value="fp16">FP16 Performance (TFLOPS)</SelectItem>
+                            <SelectItem value="int8">INT8 Performance (TOPS)</SelectItem>
+                            <SelectItem value="memory">Memory Bandwidth (GB/s)</SelectItem>
+                            <SelectItem value="training">ML Training (Images/sec)</SelectItem>
+                            <SelectItem value="inference">LLM Inference (Tokens/sec)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Select Products</Label>
+                        
+                        <div className="space-y-2">
+                          {filteredProducts.slice(0, 5).map((product) => (
+                            <div key={product.id} className="flex items-center">
+                              <Checkbox id={`compare-${product.id}`} />
+                              <Label htmlFor={`compare-${product.id}`} className="ml-2 text-sm">
+                                {product.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <Button>Compare Selected Hardware</Button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Comparison Results</h3>
+                    
+                    {/* Sample chart for demo */}
+                    <div className="bg-slate-50 rounded-lg p-6">
+                      <h4 className="text-sm font-medium mb-4 text-center">FP32 Performance (TFLOPS)</h4>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>NVIDIA H100</span>
+                            <span>989 TFLOPS</span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-4">
+                            <div className="bg-blue-600 h-4 rounded-full" style={{ width: '100%' }}></div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>NVIDIA A100</span>
+                            <span>312 TFLOPS</span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-4">
+                            <div className="bg-blue-600 h-4 rounded-full" style={{ width: '32%' }}></div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>AMD MI250X</span>
+                            <span>383 TFLOPS</span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-4">
+                            <div className="bg-blue-600 h-4 rounded-full" style={{ width: '39%' }}></div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>Intel Gaudi2</span>
+                            <span>197 TFLOPS</span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-4">
+                            <div className="bg-blue-600 h-4 rounded-full" style={{ width: '20%' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6">
+                        <h4 className="text-sm font-medium mb-2">Performance Analysis</h4>
+                        <p className="text-sm text-slate-600">
+                          The NVIDIA H100 significantly outperforms other options in raw FP32 compute power.
+                          For cost-sensitive applications, the AMD MI250X offers better performance per dollar
+                          despite lower absolute performance.
+                        </p>
+                      </div>
+                      
+                      <div className="mt-4 text-right">
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4 mr-2" />
+                          Export Comparison
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-lg font-bold mb-4">Recommended Workloads</h2>
+                
+                <div className="grid md:grid-cols-3 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Deep Learning Training</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Top pick:</span>
+                          <span className="font-medium">NVIDIA H100</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Value pick:</span>
+                          <span className="font-medium">AMD MI250X</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Key metric:</span>
+                          <span className="font-medium">FP16/BF16 TFLOPS</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Inference & Deployment</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Top pick:</span>
+                          <span className="font-medium">NVIDIA A100</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Value pick:</span>
+                          <span className="font-medium">Intel Gaudi2</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Key metric:</span>
+                          <span className="font-medium">INT8 TOPS, Mem BW</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">LLM Serving</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Top pick:</span>
+                          <span className="font-medium">NVIDIA H100</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Value pick:</span>
+                          <span className="font-medium">NVIDIA A100</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Key metric:</span>
+                          <span className="font-medium">Memory Size, BW</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </section>
+      
+      {/* Footer */}
+      <footer className="bg-slate-900 text-white py-12 px-6 mt-12">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-8">
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <Cpu className="mr-2 h-5 w-5 text-blue-400" />
+                <span className="text-blue-400">AI Hardware Platform</span>
+              </h3>
+              <p className="text-slate-400 text-sm">
+                Specialized procurement platform for AI accelerators with compliance checking, 
+                performance benchmarking, and global sourcing capabilities.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium mb-3">Key Features</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li className="flex items-center">
+                  <Globe className="h-4 w-4 mr-2 text-slate-500" />
+                  Global Availability Tracking
+                </li>
+                <li className="flex items-center">
+                  <Shield className="h-4 w-4 mr-2 text-slate-500" />
+                  Export Compliance Checks
+                </li>
+                <li className="flex items-center">
+                  <Zap className="h-4 w-4 mr-2 text-slate-500" />
+                  Performance Benchmarking
+                </li>
+                <li className="flex items-center">
+                  <Award className="h-4 w-4 mr-2 text-slate-500" />
+                  Certified Supplier Network
+                </li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-medium mb-3">Resources</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li>Hardware Comparison Guide</li>
+                <li>Export Compliance FAQ</li>
+                <li>AI Workload Optimization</li>
+                <li>Technical Specifications</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-medium mb-3">Contact</h4>
+              <div className="space-y-2 text-sm text-slate-400">
+                <p>Need help finding the right hardware?</p>
+                <Button variant="outline" className="w-full text-white border-slate-700 hover:border-blue-500">
+                  Contact Sales Team
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-8 pt-8 border-t border-slate-800 text-center text-sm text-slate-500">
+            <p>© {new Date().getFullYear()} AI Hardware Procurement Platform. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
-};
-
-export default AIHardwarePlatform;
+}
