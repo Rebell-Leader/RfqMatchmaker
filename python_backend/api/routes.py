@@ -1,5 +1,8 @@
 """
 API routes for RFQ processing platform.
+
+This module provides API routes for the RFQ processing platform,
+with specialized handling for AI hardware procurement.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Query
@@ -8,6 +11,7 @@ from typing import List, Optional, Dict, Any
 import json
 import os
 import shutil
+import logging
 from datetime import datetime
 
 from ..models.schemas import RFQResponse, SupplierMatchResponse, EmailTemplate
@@ -15,7 +19,13 @@ from ..models.schemas import RFQUploadRequest, MatchSuppliersRequest, GenerateEm
 from ..models.schemas import ExtractedRequirement
 from ..models.db_storage import storage
 from ..services.ai_service import extract_requirements_from_rfq, generate_email_proposal
-from ..services.supplier_matching import match_suppliers_for_rfq
+# Use the specialized AI hardware matching service for GPU/accelerator requirements
+from ..services.ai_hardware_matching import match_suppliers_for_rfq
+from ..services.compliance_service import ComplianceService, check_product_shipping_restrictions
+from ..services.product_scraper import create_sample_gpu_products, store_products_in_database
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Create router
 router = APIRouter()
@@ -314,3 +324,237 @@ async def generate_proposal_email(proposal_id: int):
     await storage.create_proposal(proposal_data)
     
     return email_template
+
+# AI hardware specific endpoints
+@router.post("/seed-ai-hardware-products", response_model=Dict[str, Any])
+async def seed_ai_hardware_products():
+    """Seed the database with sample AI hardware products for testing"""
+    try:
+        # Generate sample GPU products
+        sample_products = create_sample_gpu_products()
+        
+        # Store in database
+        await store_products_in_database(sample_products)
+        
+        return {
+            "success": True,
+            "message": f"Successfully seeded database with {len(sample_products)} AI hardware products",
+            "products": [p["name"] for p in sample_products]
+        }
+    except Exception as e:
+        logger.error(f"Error seeding AI hardware products: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error seeding AI hardware products: {str(e)}"
+        )
+
+@router.get("/ai-hardware/check-compliance", response_model=Dict[str, Any])
+async def check_compliance(buyer_country: str, product_id: int):
+    """Check compliance for shipping a specific product to a country"""
+    try:
+        # Get the product and supplier
+        product = await storage.get_product_by_id(product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        
+        supplier = await storage.get_supplier_by_id(product.supplierId)
+        if not supplier:
+            raise HTTPException(status_code=404, detail="Supplier not found")
+        
+        # Convert product to dict
+        product_dict = product.dict() if hasattr(product, "dict") else vars(product)
+        
+        # Check shipping restrictions
+        compliance_result = check_product_shipping_restrictions(product_dict, buyer_country)
+        
+        # Get detailed compliance report
+        compliance_service = ComplianceService()
+        buyer = {"country": buyer_country}
+        compliance_report = compliance_service.generate_compliance_report(
+            buyer,
+            supplier.dict() if hasattr(supplier, "dict") else vars(supplier),
+            product_dict
+        )
+        
+        return {
+            "canShip": compliance_result["can_ship"],
+            "restrictions": compliance_result["restrictions"],
+            "requiresLicense": compliance_result["requires_license"],
+            "requiredDocuments": compliance_result["required_documents"],
+            "complianceReport": compliance_report
+        }
+    except Exception as e:
+        logger.error(f"Error checking compliance: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error checking compliance: {str(e)}"
+        )
+
+@router.get("/ai-hardware/frameworks-compatibility", response_model=Dict[str, Any])
+async def check_frameworks_compatibility(product_id: int, frameworks: List[str] = Query(None)):
+    """Check if a product supports specific ML frameworks"""
+    try:
+        # Get the product
+        product = await storage.get_product_by_id(product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        
+        # Convert product to dict
+        product_dict = product.dict() if hasattr(product, "dict") else vars(product)
+        
+        # Extract supported frameworks
+        supported_frameworks = product_dict.get("supportedFrameworks", [])
+        
+        # If supportedFrameworks is not in the main product dict, check in specifications
+        if not supported_frameworks and "specifications" in product_dict:
+            specifications = product_dict["specifications"]
+            if isinstance(specifications, str):
+                try:
+                    specifications = json.loads(specifications)
+                except:
+                    specifications = {}
+            
+            supported_frameworks = specifications.get("supportedFrameworks", [])
+        
+        # Check compatibility with requested frameworks
+        if not frameworks:
+            return {
+                "product": product.name,
+                "supportedFrameworks": supported_frameworks,
+                "compatibility": 1.0
+            }
+        
+        # Count matching frameworks
+        matching = 0
+        framework_compatibility = {}
+        for framework in frameworks:
+            framework_lower = framework.lower()
+            is_supported = False
+            for supported in supported_frameworks:
+                if framework_lower in supported.lower():
+                    is_supported = True
+                    matching += 1
+                    break
+            framework_compatibility[framework] = is_supported
+        
+        compatibility_score = matching / len(frameworks) if frameworks else 1.0
+        
+        return {
+            "product": product.name,
+            "supportedFrameworks": supported_frameworks,
+            "requestedFrameworks": frameworks,
+            "compatibilityScore": compatibility_score,
+            "frameworkCompatibility": framework_compatibility
+        }
+    except Exception as e:
+        logger.error(f"Error checking framework compatibility: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error checking framework compatibility: {str(e)}"
+        )
+
+@router.get("/ai-hardware/performance-comparison", response_model=Dict[str, Any])
+async def compare_hardware_performance(product_ids: List[int] = Query(...), metric: str = "fp32"):
+    """Compare performance metrics of multiple AI hardware products"""
+    try:
+        # Valid performance metrics
+        valid_metrics = ["fp32", "fp16", "int8", "memory_bandwidth", "memory_capacity", "tdp"]
+        
+        if metric not in valid_metrics:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid metric. Valid options are: {', '.join(valid_metrics)}"
+            )
+        
+        # Get the products
+        products = []
+        for pid in product_ids:
+            product = await storage.get_product_by_id(pid)
+            if product:
+                products.append(product)
+        
+        if not products:
+            raise HTTPException(status_code=404, detail="No valid products found")
+        
+        # Extract performance data
+        performance_data = []
+        for product in products:
+            # Convert product to dict
+            product_dict = product.dict() if hasattr(product, "dict") else vars(product)
+            
+            # Extract compute specs
+            compute_specs = product_dict.get("computeSpecs", {})
+            memory_specs = product_dict.get("memorySpecs", {})
+            power_specs = product_dict.get("powerConsumption", {})
+            
+            # If specs are stored as strings, convert to dict
+            if isinstance(compute_specs, str):
+                try:
+                    compute_specs = json.loads(compute_specs)
+                except:
+                    compute_specs = {}
+            
+            if isinstance(memory_specs, str):
+                try:
+                    memory_specs = json.loads(memory_specs)
+                except:
+                    memory_specs = {}
+            
+            if isinstance(power_specs, str):
+                try:
+                    power_specs = json.loads(power_specs)
+                except:
+                    power_specs = {}
+            
+            # Extract metric value
+            metric_value = None
+            if metric == "fp32":
+                metric_value = compute_specs.get("fp32Performance", 0)
+            elif metric == "fp16":
+                metric_value = compute_specs.get("fp16Performance", 0)
+            elif metric == "int8":
+                metric_value = compute_specs.get("int8Performance", 0)
+            elif metric == "memory_bandwidth":
+                metric_value = memory_specs.get("bandwidth", 0)
+            elif metric == "memory_capacity":
+                metric_value = memory_specs.get("capacity", 0)
+            elif metric == "tdp":
+                metric_value = power_specs.get("tdp", 0)
+            
+            performance_data.append({
+                "id": product.id,
+                "name": product.name,
+                "manufacturer": product_dict.get("manufacturer", "Unknown"),
+                "metric": metric,
+                "value": metric_value
+            })
+        
+        # Sort by metric value (descending)
+        performance_data.sort(key=lambda x: x["value"], reverse=True)
+        
+        # Calculate relative performance (% of best)
+        if performance_data and performance_data[0]["value"]:
+            best_value = performance_data[0]["value"]
+            for item in performance_data:
+                item["relativePerformance"] = (item["value"] / best_value) * 100
+        
+        metric_labels = {
+            "fp32": "FP32 Performance (TFLOPS)",
+            "fp16": "FP16 Performance (TFLOPS)",
+            "int8": "INT8 Performance (TOPS)",
+            "memory_bandwidth": "Memory Bandwidth (GB/s)",
+            "memory_capacity": "Memory Capacity (GB)",
+            "tdp": "Thermal Design Power (W)"
+        }
+        
+        return {
+            "metric": metric,
+            "metricLabel": metric_labels.get(metric, metric),
+            "products": performance_data
+        }
+    except Exception as e:
+        logger.error(f"Error comparing hardware performance: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error comparing hardware performance: {str(e)}"
+        )

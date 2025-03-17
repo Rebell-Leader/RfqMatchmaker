@@ -12,8 +12,9 @@ import ReviewRequirements from "@/pages/review-requirements";
 import MatchSuppliers from "@/pages/match-suppliers";
 import ScoreResults from "@/pages/score-results";
 import SendProposals from "@/pages/send-proposals";
+import AIHardwarePlatform from "@/pages/ai-hardware-platform";
 import { Button } from "@/components/ui/button";
-import { Beaker } from "lucide-react";
+import { Beaker, Cpu } from "lucide-react";
 
 // Demo Mode Toggle Button
 function DemoModeToggle() {
