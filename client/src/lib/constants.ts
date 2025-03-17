@@ -33,7 +33,8 @@ export const PRODUCT_CATEGORIES = [
   "Tablets",
   "Printers",
   "Servers",
-  "Networking"
+  "Networking",
+  "AI Hardware"
 ];
 
 // Email template placeholders
@@ -45,7 +46,7 @@ export const EMAIL_PLACEHOLDERS = {
 
 // Demo mode flag and mock data
 export const DEMO_MODE = {
-  enabled: false,
+  enabled: true, // Enable demo mode by default
   processingTime: 2000, // Mock processing time in milliseconds
 };
 
@@ -216,6 +217,130 @@ export const DEMO_SUPPLIER_MATCHES = [
   },
   {
     supplier: {
+      id: 1,
+      name: "NVIDIA Corporation",
+      logoUrl: "https://cdn-icons-png.flaticon.com/512/882/882704.png",
+      website: "https://www.nvidia.com",
+      country: "United States",
+      description: "NVIDIA is a global leader in AI computing hardware, specializing in GPUs and accelerated computing solutions for data centers, AI research, and cloud computing.",
+      contactEmail: "enterprise-sales@nvidia.com",
+      contactPhone: "+1-800-789-8632",
+      deliveryTime: "30-45 days",
+      isVerified: true
+    },
+    product: {
+      id: 2,
+      supplierId: 1,
+      name: "NVIDIA DGX SuperPOD",
+      category: "AI Hardware",
+      description: "A turnkey AI infrastructure solution that combines NVIDIA DGX systems with high-performance networking and optimized software stack for enterprise AI deployments.",
+      price: 450000.00,
+      specifications: {
+        computeSpecs: {
+          tensorFlops: 5000, // Aggregate FP8 performance 
+          fp32Performance: 280, // TFLOPS
+          fp16Performance: 560, // TFLOPS
+          int8Performance: 8000, // TOPS
+          tensorCores: 2112, // 4x H100
+          cudaCores: 67584, // 4x H100 
+          clockSpeed: 1830 // MHz
+        },
+        memorySpecs: {
+          capacity: 320, // GB (4x H100)
+          type: "HBM3",
+          bandwidth: 13400, // GB/s aggregate
+          busWidth: 20480, // bits total
+          eccSupport: true
+        },
+        powerSpecs: {
+          tdp: 10500, // watts total system power
+          requiredPsu: 15000, // watts
+          powerConnectors: "Redundant Power"
+        },
+        formFactor: "4U Rackmount",
+        connectivity: ["InfiniBand 400G", "NVLink", "PCIe 5.0"],
+        supportedFrameworks: ["PyTorch", "TensorFlow", "JAX", "CUDA", "MXNet", "RAPIDS"],
+        coolingRequirements: "Liquid cooling"
+      },
+      warranty: "3 years premium enterprise support with 24/7 coverage"
+    },
+    matchScore: 95.2,
+    matchDetails: {
+      price: 72,
+      performance: 100,
+      compatibility: 98,
+      availability: 85,
+      compliance: 95,
+      support: 97
+    },
+    totalPrice: 2700000.00, // For 6 units
+    estimatedDelivery: "60-90 days",
+    complianceNotes: "Fully compliant with US export regulations. Requires end-user verification and site preparation."
+  },
+  {
+    supplier: {
+      id: 1,
+      name: "NVIDIA Corporation",
+      logoUrl: "https://cdn-icons-png.flaticon.com/512/882/882704.png",
+      website: "https://www.nvidia.com",
+      country: "United States",
+      description: "NVIDIA is a global leader in AI computing hardware, specializing in GPUs and accelerated computing solutions for data centers, AI research, and cloud computing.",
+      contactEmail: "enterprise-sales@nvidia.com",
+      contactPhone: "+1-800-789-8632",
+      deliveryTime: "30-45 days",
+      isVerified: true
+    },
+    product: {
+      id: 7,
+      supplierId: 1,
+      name: "NVIDIA Jetson AGX Orin",
+      category: "AI Hardware",
+      description: "Compact edge AI system delivering server-class performance for embedded applications.",
+      price: 1999.00,
+      specifications: {
+        computeSpecs: {
+          tensorFlops: 62, // FP16
+          fp32Performance: 31, // TFLOPS
+          fp16Performance: 62, // TFLOPS
+          int8Performance: 124, // TOPS
+          tensorCores: 64,
+          cudaCores: 2048,
+          clockSpeed: 1300 // MHz
+        },
+        memorySpecs: {
+          capacity: 32, // GB
+          type: "LPDDR5",
+          bandwidth: 204, // GB/s
+          busWidth: 256, // bits
+          eccSupport: false
+        },
+        powerSpecs: {
+          tdp: 60, // watts
+          requiredPsu: 100, // watts
+          powerConnectors: "DC Input"
+        },
+        formFactor: "Compact Module",
+        connectivity: ["PCIe 4.0", "10GbE", "USB 3.2"],
+        supportedFrameworks: ["PyTorch", "TensorFlow", "TensorRT", "CUDA"],
+        coolingRequirements: "Passive/Active cooling"
+      },
+      warranty: "1 year standard"
+    },
+    matchScore: 78.4,
+    matchDetails: {
+      price: 99,
+      performance: 69,
+      compatibility: 75,
+      availability: 97,
+      compliance: 98,
+      support: 80
+    },
+    totalPrice: 47976.00, // For 24 units
+    estimatedDelivery: "15-20 days",
+    complianceNotes: "No export restrictions for most countries."
+  },
+  {
+    supplier: {
       id: 2,
       name: "AMD Inc.",
       logoUrl: "https://cdn-icons-png.flaticon.com/512/882/882713.png",
@@ -335,6 +460,189 @@ export const DEMO_SUPPLIER_MATCHES = [
     totalPrice: 540000.00,
     estimatedDelivery: "25 days",
     complianceNotes: "Compliant with all US export regulations. No restrictions for data centers in approved countries."
+  },
+  {
+    supplier: {
+      id: 4,
+      name: "Huawei Technologies",
+      logoUrl: "https://cdn-icons-png.flaticon.com/512/882/882727.png",
+      website: "https://www.huawei.com",
+      country: "China",
+      description: "Huawei is a leading global provider of information and communications technology infrastructure and smart devices.",
+      contactEmail: "enterprise@huawei.com",
+      contactPhone: "+86-755-28780808",
+      deliveryTime: "30-50 days",
+      isVerified: true
+    },
+    product: {
+      id: 8,
+      supplierId: 4,
+      name: "Huawei Ascend 910",
+      category: "AI Hardware",
+      description: "AI processor designed for training and inference, offering exceptional power efficiency for enterprise AI computing tasks.",
+      price: 24500.00,
+      specifications: {
+        computeSpecs: {
+          tensorFlops: 320, // FP16
+          fp32Performance: 160, // TFLOPS
+          fp16Performance: 320, // TFLOPS
+          int8Performance: 640, // TOPS
+          tensorCores: 32, // NPUs
+          clockSpeed: 1400 // MHz estimate
+        },
+        memorySpecs: {
+          capacity: 64, // GB
+          type: "HBM2",
+          bandwidth: 1200, // GB/s
+          busWidth: 4096, // bits
+          eccSupport: true
+        },
+        powerSpecs: {
+          tdp: 310, // watts
+          requiredPsu: 1000, // watts
+          powerConnectors: "8-pin PCIe"
+        },
+        formFactor: "PCIe & OAM",
+        connectivity: ["PCIe 4.0", "Proprietary Interconnect"],
+        supportedFrameworks: ["TensorFlow", "MindSpore", "Caffe"],
+        coolingRequirements: "Air cooling with active fans"
+      },
+      warranty: "3 years standard"
+    },
+    matchScore: 83.5,
+    matchDetails: {
+      price: 95,
+      performance: 85,
+      compatibility: 72,
+      availability: 70,
+      compliance: 65,
+      support: 82
+    },
+    totalPrice: 588000.00,
+    estimatedDelivery: "45 days",
+    complianceNotes: "Export restrictions apply. Not available in some countries including US. Compliance verification required."
+  },
+  {
+    supplier: {
+      id: 5,
+      name: "Amazon Web Services",
+      logoUrl: "https://cdn-icons-png.flaticon.com/512/5968/5968250.png",
+      website: "https://aws.amazon.com",
+      country: "United States",
+      description: "Amazon Web Services (AWS) is a cloud services platform offering computing power, database storage, and other functionality to help businesses scale and grow.",
+      contactEmail: "aws-sales@amazon.com",
+      contactPhone: "+1-206-266-7010",
+      deliveryTime: "14-20 days",
+      isVerified: true
+    },
+    product: {
+      id: 10,
+      supplierId: 5,
+      name: "AWS Trainium Accelerator",
+      category: "AI Hardware",
+      description: "AWS-designed chip for high-performance, cost-effective deep learning training in the cloud or on-premises.",
+      price: 25000.00,
+      specifications: {
+        computeSpecs: {
+          tensorFlops: 190, // FP16
+          fp32Performance: 95, // TFLOPS
+          fp16Performance: 190, // TFLOPS
+          int8Performance: 380, // TOPS
+          tensorCores: null, // Proprietary architecture
+          clockSpeed: null // Proprietary
+        },
+        memorySpecs: {
+          capacity: 64, // GB
+          type: "HBM2e",
+          bandwidth: 2400, // GB/s
+          busWidth: 4096, // bits
+          eccSupport: true
+        },
+        powerSpecs: {
+          tdp: 400, // watts
+          requiredPsu: 1200, // watts
+          powerConnectors: "OCP Accelerator Module"
+        },
+        formFactor: "OCP Accelerator Module",
+        connectivity: ["PCIe 4.0", "AWS Fabric"],
+        supportedFrameworks: ["PyTorch", "TensorFlow", "MXNet"],
+        coolingRequirements: "Liquid cooling"
+      },
+      warranty: "3 years with 4-hour response"
+    },
+    matchScore: 87.6,
+    matchDetails: {
+      price: 96,
+      performance: 85,
+      compatibility: 86,
+      availability: 98,
+      compliance: 99,
+      support: 91
+    },
+    totalPrice: 600000.00,
+    estimatedDelivery: "18 days",
+    complianceNotes: "US-based manufacturing with full export compliance. Available worldwide except sanctioned countries."
+  },
+  {
+    supplier: {
+      id: 6,
+      name: "Google Cloud",
+      logoUrl: "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
+      website: "https://cloud.google.com",
+      country: "United States",
+      description: "Google Cloud Platform is a suite of cloud computing services that runs on the same infrastructure that Google uses internally for its end-user products.",
+      contactEmail: "gcp-sales@google.com",
+      contactPhone: "+1-650-253-0000",
+      deliveryTime: "21-35 days",
+      isVerified: true
+    },
+    product: {
+      id: 11,
+      supplierId: 6,
+      name: "Google Cloud TPU v4",
+      category: "AI Hardware",
+      description: "Cloud TPUs are Google's custom-developed application-specific integrated circuits (ASICs) used to accelerate machine learning workloads.",
+      price: 28900.00,
+      specifications: {
+        computeSpecs: {
+          tensorFlops: 275, // BFLOAT16
+          fp32Performance: 138, // TFLOPS
+          fp16Performance: 275, // TFLOPS
+          int8Performance: 550, // TOPS
+          tensorCores: null, // Proprietary architecture
+          clockSpeed: null // Proprietary
+        },
+        memorySpecs: {
+          capacity: 32, // GB per chip
+          type: "HBM",
+          bandwidth: 1200, // GB/s
+          busWidth: 3072, // bits
+          eccSupport: true
+        },
+        powerSpecs: {
+          tdp: 450, // watts per chip
+          requiredPsu: 1500, // watts
+          powerConnectors: "OCP Compatible"
+        },
+        formFactor: "OCP Module",
+        connectivity: ["PCIe 4.0", "Proprietary Interconnect"],
+        supportedFrameworks: ["TensorFlow", "JAX", "PyTorch"],
+        coolingRequirements: "Liquid cooling"
+      },
+      warranty: "3 years enterprise support"
+    },
+    matchScore: 90.2,
+    matchDetails: {
+      price: 92,
+      performance: 94,
+      compatibility: 87,
+      availability: 89,
+      compliance: 98,
+      support: 96
+    },
+    totalPrice: 693600.00,
+    estimatedDelivery: "30 days",
+    complianceNotes: "US export regulations apply. No restrictions for data centers in approved countries."
   }
 ];
 
