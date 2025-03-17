@@ -121,10 +121,11 @@ export default function AIHardwarePlatform() {
 
   // Query to get AI hardware products
   const { data: products, isLoading: isLoadingProducts } = useQuery<AIHardwareProduct[], Error>({
-    queryKey: ["/api/products", "AI Hardware"],
+    queryKey: ["/api/products/ai-hardware"],
     queryFn: async () => {
       try {
-        const response = await apiRequest("/api/products?category=AI%20Hardware", {
+        // Using our dedicated AI hardware endpoint
+        const response = await apiRequest("/api/products/ai-hardware", {
           method: "GET"
         } as any);
         return response as unknown as AIHardwareProduct[];
@@ -145,7 +146,7 @@ export default function AIHardwarePlatform() {
       try {
         const response = await apiRequest(`/api/compliance?country=${complianceCountry}&productId=${productToCheck}`, { 
           method: "GET" 
-        }) as unknown;
+        });
         return response as ComplianceCheckResult;
       } catch (error) {
         console.error("Failed to check compliance:", error);
@@ -155,6 +156,90 @@ export default function AIHardwarePlatform() {
     enabled: !!productToCheck,
     refetchOnWindowFocus: false
   });
+  
+  // Query for framework compatibility check
+  const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
+  const [selectedFrameworksToCheck, setSelectedFrameworksToCheck] = useState<string[]>([]);
+  
+  const { data: frameworkCompatibility, isLoading: isCheckingFrameworks } = useQuery<{
+    productId: number;
+    productName: string;
+    manufacturer: string;
+    compatibility: Array<{framework: string; supported: boolean; notes: string}>
+  } | null, Error>({
+    queryKey: ["/api/frameworks-compatibility", selectedProduct, selectedFrameworksToCheck],
+    queryFn: async () => {
+      if (!selectedProduct || selectedFrameworksToCheck.length === 0) return null;
+      
+      try {
+        const frameworksStr = selectedFrameworksToCheck.join(',');
+        const response = await apiRequest(`/api/frameworks-compatibility?productId=${selectedProduct}&frameworks=${frameworksStr}`, {
+          method: "GET"
+        });
+        return response;
+      } catch (error) {
+        console.error("Failed to check framework compatibility:", error);
+        return null;
+      }
+    },
+    enabled: !!selectedProduct && selectedFrameworksToCheck.length > 0,
+    refetchOnWindowFocus: false
+  });
+  
+  // Query for hardware performance comparison
+  const [productsToCompare, setProductsToCompare] = useState<number[]>([]);
+  const [comparisonMetric, setComparisonMetric] = useState("fp32Performance");
+  
+  const { data: performanceComparison, isLoading: isComparing } = useQuery<{
+    metric: string;
+    products: Array<{
+      id: number;
+      name: string;
+      manufacturer: string;
+      metric: string;
+      value: number;
+      unit: string;
+      relativePerformance: number;
+    }>
+  } | null, Error>({
+    queryKey: ["/api/hardware-comparison", productsToCompare, comparisonMetric],
+    queryFn: async () => {
+      if (productsToCompare.length < 2) return null;
+      
+      try {
+        const productIdsStr = productsToCompare.join(',');
+        const response = await apiRequest(`/api/hardware-comparison?productIds=${productIdsStr}&metric=${comparisonMetric}`, {
+          method: "GET"
+        });
+        return response;
+      } catch (error) {
+        console.error("Failed to compare hardware performance:", error);
+        return null;
+      }
+    },
+    enabled: productsToCompare.length >= 2,
+    refetchOnWindowFocus: false
+  });
+  
+  // Function to check framework compatibility for a product
+  const checkFrameworkCompatibility = (productId: number, frameworks: string[]) => {
+    setSelectedProduct(productId);
+    setSelectedFrameworksToCheck(frameworks);
+    setActiveTab("frameworks");
+  };
+  
+  // Function to add or remove a product from comparison
+  const toggleProductComparison = (productId: number) => {
+    if (productsToCompare.includes(productId)) {
+      setProductsToCompare(productsToCompare.filter(id => id !== productId));
+    } else {
+      setProductsToCompare([...productsToCompare, productId]);
+    }
+    
+    if (productsToCompare.length >= 1) {
+      setActiveTab("compare");
+    }
+  };
 
   // Function to check compliance for a specific product
   const checkCompliance = (productId: number) => {
@@ -277,7 +362,7 @@ export default function AIHardwarePlatform() {
       <section className="py-12 px-6">
         <div className="max-w-7xl mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-            <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-3 md:grid-cols-3 gap-4">
+            <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-4 md:grid-cols-4 gap-4">
               <TabsTrigger value="explore" className="flex items-center">
                 <Server className="mr-2 h-4 w-4" />
                 <span className="hidden md:inline">Explore Hardware</span>
@@ -287,6 +372,11 @@ export default function AIHardwarePlatform() {
                 <Shield className="mr-2 h-4 w-4" />
                 <span className="hidden md:inline">Check Compliance</span>
                 <span className="md:hidden">Compliance</span>
+              </TabsTrigger>
+              <TabsTrigger value="frameworks" className="flex items-center">
+                <Code2 className="mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Framework Support</span>
+                <span className="md:hidden">Frameworks</span>
               </TabsTrigger>
               <TabsTrigger value="compare" className="flex items-center">
                 <ArrowUpDown className="mr-2 h-4 w-4" />
