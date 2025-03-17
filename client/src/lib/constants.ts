@@ -96,10 +96,11 @@ export const AI_HARDWARE_RFQ = {
       }
     },
     criteria: {
-      price: { weight: 30 },
-      performance: { weight: 40 },
+      price: { weight: 25 },
+      performance: { weight: 35 },
       availability: { weight: 15 },
-      compliance: { weight: 15 }
+      compliance: { weight: 15 },
+      support: { weight: 10 }
     }
   },
   createdAt: new Date().toISOString()
@@ -206,7 +207,8 @@ export const DEMO_SUPPLIER_MATCHES = [
       performance: 99,
       compatibility: 98,
       availability: 90,
-      compliance: 95
+      compliance: 95,
+      support: 93
     },
     totalPrice: 780000.00,
     estimatedDelivery: "35 days",
