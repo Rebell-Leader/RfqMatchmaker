@@ -268,7 +268,8 @@ export const DEMO_SUPPLIER_MATCHES = [
       performance: 91,
       compatibility: 85,
       availability: 93,
-      compliance: 99
+      compliance: 99,
+      support: 89
     },
     totalPrice: 690000.00,
     estimatedDelivery: "30 days",
@@ -328,7 +329,8 @@ export const DEMO_SUPPLIER_MATCHES = [
       performance: 78,
       compatibility: 82,
       availability: 95,
-      compliance: 97
+      compliance: 97,
+      support: 87
     },
     totalPrice: 540000.00,
     estimatedDelivery: "25 days",
