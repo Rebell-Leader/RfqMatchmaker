@@ -647,8 +647,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get AI hardware products endpoint
   app.get("/api/products/ai-hardware", async (req: Request, res: Response) => {
     try {
-      log("Serving AI hardware products data", "express");
-      res.json(aiHardwareProducts);
+      log("Forwarding AI hardware products request to Python backend", "express");
+      
+      try {
+        // Forward to Python backend
+        const pythonResponse = await fetch(`${PYTHON_BACKEND_URL}/api/products?category=GPU`);
+        
+        if (!pythonResponse.ok) {
+          const errorText = await pythonResponse.text();
+          log(`Python backend error: ${errorText}`, "express");
+          
+          // Fall back to in-memory data if db request fails
+          log("Falling back to in-memory AI hardware products data", "express");
+          return res.json(aiHardwareProducts);
+        }
+        
+        const responseData = await pythonResponse.json();
+        
+        if (Array.isArray(responseData) && responseData.length > 0) {
+          log(`Python backend response: AI hardware products retrieved from database`, "express");
+          return res.json(responseData);
+        } else {
+          // If no data in database, return mock data
+          log("No AI hardware products in database, using in-memory data", "express");
+          return res.json(aiHardwareProducts);
+        }
+      } catch (error) {
+        log(`Error forwarding to Python backend: ${error}`, "express");
+        // Fall back to in-memory data
+        log("Falling back to in-memory AI hardware products data", "express");
+        return res.json(aiHardwareProducts);
+      }
     } catch (error) {
       console.error("Error fetching AI hardware products:", error);
       res.status(500).json({ error: "Failed to fetch AI hardware products" });
@@ -839,6 +868,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Seed the database with AI hardware products
+  app.post("/api/seed/ai-hardware", async (_req: Request, res: Response) => {
+    try {
+      log("Seeding AI hardware products to database", "express");
+      
+      // Convert aiHardwareProducts to proper database products format
+      const dbProducts = aiHardwareProducts.map(product => {
+        return {
+          supplierId: product.supplierId,
+          name: product.name,
+          category: "GPU", // Change from "AI Hardware" to "GPU" to match Python backend
+          type: product.formFactor || null,
+          manufacturer: product.manufacturer,
+          model: product.model,
+          specifications: product,
+          computeSpecs: product.computeSpecs,
+          memorySpecs: product.memorySpecs,
+          powerConsumption: product.powerSpecs,
+          price: product.price,
+          warranty: product.warranty,
+          architecture: product.formFactor,
+          supportedFrameworks: product.supportedFrameworks,
+          complianceInfo: product.complianceInfo,
+          benchmarks: product.benchmarks,
+          inStock: product.inStock ?? true,
+          leadTime: 14, // 2 weeks default
+          quantityAvailable: 10
+        };
+      });
+      
+      // Insert each product into the database
+      const results = [];
+      for (const product of dbProducts) {
+        try {
+          const newProduct = await storage.createProduct(product);
+          results.push(newProduct);
+          log(`Created product: ${product.name}`, "express");
+        } catch (error) {
+          log(`Error creating product ${product.name}: ${error}`, "express");
+          // Continue with other products even if one fails
+        }
+      }
+      
+      return res.status(201).json({
+        message: "AI hardware products seeded successfully",
+        count: results.length,
+        products: results
+      });
+    } catch (error) {
+      console.error("Error seeding AI hardware products:", error);
+      res.status(500).json({ error: "Failed to seed AI hardware products" });
+    }
+  });
+  
   // No helper functions needed - All AI operations are handled by the Python backend
   
   const httpServer = createServer(app);
