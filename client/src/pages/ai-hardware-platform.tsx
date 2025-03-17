@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Cpu, Server, ChevronRight, Globe, Shield, Zap, Award, Check, X, Clock, ArrowUpDown, Download, Activity } from "lucide-react";
+import { Cpu, Server, ChevronRight, Globe, Shield, Zap, Award, Check, X, Clock, ArrowUpDown, Download, Activity, Code2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 // Types for our GPU/AI Hardware products
