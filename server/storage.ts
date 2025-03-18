@@ -141,9 +141,6 @@ export class MemStorage implements IStorage {
       minOrderQuantity: insertSupplier.minOrderQuantity ?? null,
       dataSourceUrl: insertSupplier.dataSourceUrl ?? null,
       supportedRegions: insertSupplier.supportedRegions ?? null,
-      paymentTerms: insertSupplier.paymentTerms ?? null,
-      specializations: insertSupplier.specializations ?? null,
-      certifications: insertSupplier.certifications ?? null,
       lastUpdated: new Date()
     };
     this.suppliers.set(id, supplier);
@@ -161,34 +158,36 @@ export class MemStorage implements IStorage {
   // Product methods
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const id = this.productId++;
-    const product: Product = { 
-      ...insertProduct, 
+    
+    // Create a new product object with only the fields defined in the schema
+    // First establish required fields that can't be null
+    const product: Product = {
       id,
+      name: insertProduct.name,
+      category: insertProduct.category,
+      specifications: insertProduct.specifications,
+      price: insertProduct.price,
+      
+      // Optional fields with null fallbacks
+      supplierId: insertProduct.supplierId ?? null,
       type: insertProduct.type ?? null,
       manufacturer: insertProduct.manufacturer ?? null,
       model: insertProduct.model ?? null,
       architecture: insertProduct.architecture ?? null,
-      supplierId: insertProduct.supplierId ?? null,
-      leadTime: insertProduct.leadTime ?? null,
-      inStock: insertProduct.inStock ?? true,
-      dataSourceUrl: insertProduct.dataSourceUrl ?? null,
-      quantityAvailable: insertProduct.quantityAvailable ?? null,
       computeSpecs: insertProduct.computeSpecs ?? null,
       memorySpecs: insertProduct.memorySpecs ?? null,
-      powerSpecs: insertProduct.powerSpecs ?? null,
-      thermalSpecs: insertProduct.thermalSpecs ?? null,
-      connectivity: insertProduct.connectivity ?? null,
-      dimensions: insertProduct.dimensions ?? null,
+      powerConsumption: insertProduct.powerConsumption ?? null,
       supportedFrameworks: insertProduct.supportedFrameworks ?? null,
-      formFactor: insertProduct.formFactor ?? null,
       complianceInfo: insertProduct.complianceInfo ?? null,
       benchmarks: insertProduct.benchmarks ?? null,
-      availability: insertProduct.availability ?? null,
-      releaseDate: insertProduct.releaseDate ?? null,
-      endOfLife: insertProduct.endOfLife ?? null,
+      inStock: insertProduct.inStock ?? true,
+      leadTime: insertProduct.leadTime ?? null,
+      quantityAvailable: insertProduct.quantityAvailable ?? null,
       warranty: insertProduct.warranty ?? null,
-      lastPriceUpdate: new Date()
+      lastPriceUpdate: new Date(),
+      dataSourceUrl: insertProduct.dataSourceUrl ?? null,
     };
+    
     this.products.set(id, product);
     return product;
   }
@@ -213,12 +212,20 @@ export class MemStorage implements IStorage {
   async createProposal(insertProposal: InsertProposal): Promise<Proposal> {
     const id = this.proposalId++;
     const createdAt = new Date();
+    
+    // Make sure to properly define all fields according to the schema
     const proposal: Proposal = { 
       ...insertProposal, 
       id, 
       createdAt,
       rfqId: insertProposal.rfqId ?? null,
       productId: insertProposal.productId ?? null,
+      score: insertProposal.score ?? 0,
+      priceScore: insertProposal.priceScore ?? 0,
+      performanceScore: insertProposal.performanceScore ?? 0,
+      compatibilityScore: insertProposal.compatibilityScore ?? 0,
+      availabilityScore: insertProposal.availabilityScore ?? 0,
+      complianceScore: insertProposal.complianceScore ?? 0,
       emailContent: insertProposal.emailContent ?? null,
       alternatives: insertProposal.alternatives ?? null,
       estimatedDeliveryDate: insertProposal.estimatedDeliveryDate ?? null,
