@@ -83,12 +83,21 @@ class MatchDetails(BaseModel):
     quality: float
     delivery: float
 
+class ProductAlternatives(BaseModel):
+    similarPerformance: Optional[List[int]] = None
+    lowerCost: Optional[List[int]] = None
+    fasterDelivery: Optional[List[int]] = None
+    betterCompliance: Optional[List[int]] = None
+
 class SupplierMatch(BaseModel):
     supplier: Supplier
     product: Product
     matchScore: float
-    matchDetails: MatchDetails
+    matchDetails: Dict[str, float]  # Changed to Dict for more flexibility
     totalPrice: float
+    estimatedDelivery: Optional[str] = None
+    complianceNotes: Optional[str] = None
+    alternatives: Optional[Dict[str, List[int]]] = None
 
 class Proposal(BaseModel):
     id: int

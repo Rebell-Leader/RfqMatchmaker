@@ -474,7 +474,7 @@ def check_compliance_match(buyer_country: str, product: Dict[str, Any], supplier
 def calculate_match_score(
     product: Dict[str, Any], 
     supplier: Dict[str, Any], 
-    requirements: Dict[str, Any], 
+    requirements: Any,  # Can be Dict or ExtractedRequirement object
     buyer_country: str
 ) -> Tuple[float, Dict[str, Any]]:
     """
@@ -691,7 +691,7 @@ async def find_alternative_products(
     product: Product,
     all_products: List[Product],
     supplier_matches: List[SupplierMatch]
-) -> Dict[str, int]:
+) -> Dict[str, List[int]]:
     """
     Find alternative products that may be of interest
     
@@ -957,8 +957,16 @@ async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
             if match_results:
                 # Find alternatives only for top matches
                 top_matches = match_results[:min(5, len(match_results))]
+                
+                # Get all AI hardware products for alternatives search
+                all_ai_products = []
+                for category in ai_hw_categories:
+                    category_products = await db_storage.get_products_by_category(category)
+                    if category_products:
+                        all_ai_products.extend(category_products)
+                
                 for match in top_matches:
-                    alternatives = await find_alternative_products(match.product, all_products, match_results)
+                    alternatives = await find_alternative_products(match.product, all_ai_products, match_results)
                     if alternatives:
                         # Update match object with alternatives if found
                         match.alternatives = alternatives
