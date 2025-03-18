@@ -1,0 +1,225 @@
+1:10:30 PM [python] [Python Error] INFO:     Application startup complete.
+1:14:17 PM [express] Forwarding manual RFQ creation to Python backend
+1:14:17 PM [python] [Python Error] INFO:python_backend.api.routes:Received manual RFQ creation request: title='LegalAI - AI Accelerator Procurement' description='Seeking high-performance GPUs for machine learning workloads' specifications='\n# AI Hardware RFQ Questionnaire Results\n\n## Company Information\nCompany Name: LegalAI\nLocation: Germany\nIndustry: Technology\n\n\n## Project Information\nProject Name: AI Accelerator Procurement\nDescription: Seeking high-performance GPUs for machine learning workloads\nBudget: 50k-100k\nTimeframe: >12 months\n\n## Hardware Purpose\nUsage Purpose: training, inference\n\n\n## Performance Requirements\nPerformance Level: high\nPerformance Details: Minimum 40 TFLOPS FP32 performance\nMinimum Memory: 32 GB\nMemory Bandwidth: 2000 GB/s\n\n## Framework Compatibility\nFrameworks: pytorch, tensorflow\n\n\n## Deployment Environment\nEnvironment: workstation\nMaximum Power Consumption: 300 Watts\nCooling Requirements: Air cooling preferred, liquid cooling acceptable\n\n## Compliance and Regulatory\nRegulatory Requirements: gdpr\n\n\n## Quantity and Timeline\nQuantity: 4 units\nDelivery Timeline: 3-months\n'
+INFO:python_backend.api.routes:Extracting requirements from specifications...
+1:14:18 PM [python] [Python Error] INFO:httpx:HTTP Request: POST https://api.featherless.ai/v1/chat/completions "HTTP/1.1 403 Forbidden"
+1:14:18 PM [python] [Python Error] ERROR:python_backend.services.ai_service:Error extracting requirements from RFQ: Error code: 403 - {'statusCode': 403, 'message': 'Your subscription has overdue payments. Please login to the website and ensure your payment method is valid.', 'code': 'upgrade_required'}
+1:14:18 PM [python] [Python Error] ERROR:python_backend.services.ai_service:Traceback (most recent call last):
+  File "/home/runner/workspace/python_backend/services/ai_service.py", line 84, in extract_requirements_from_rfq
+    response = client.chat.completions.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/openai/_utils/_utils.py", line 279, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/openai/resources/chat/completions/completions.py", line 914, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/openai/_base_client.py", line 1242, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/openai/_base_client.py", line 919, in request
+    return self._request(
+           ^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/openai/_base_client.py", line 1023, in _request
+    raise self._make_status_error_from_response(err.response) from None
+openai.PermissionDeniedError: Error code: 403 - {'statusCode': 403, 'message': 'Your subscription has overdue payments. Please login to the website and ensure your payment method is valid.', 'code': 'upgrade_required'}
+1:14:18 PM [python] [Python Error] INFO:python_backend.api.routes:Creating RFQ in database with data: {'title': 'LegalAI - AI Accelerator Procurement', 'description': 'Seeking high-performance GPUs for machine learning workloads', 'originalContent': '\n# AI Hardware RFQ Questionnaire Results\n\n## Company Information\nCompany Name: LegalAI\nLocation: Germany\nIndustry: Technology\n\n\n## Project Information\nProject Name: AI Accelerator Procurement\nDescription: Seeking high-performance GPUs for machine learning workloads\nBudget: 50k-100k\nTimeframe: >12 months\n\n## Hardware Purpose\nUsage Purpose: training, inference\n\n\n## Performance Requirements\nPerformance Level: high\nPerformance Details: Minimum 40 TFLOPS FP32 performance\nMinimum Memory: 32 GB\nMemory Bandwidth: 2000 GB/s\n\n## Framework Compatibility\nFrameworks: pytorch, tensorflow\n\n\n## Deployment Environment\nEnvironment: workstation\nMaximum Power Consumption: 300 Watts\nCooling Requirements: Air cooling preferred, liquid cooling acceptable\n\n## Compliance and Regulatory\nRegulatory Requirements: gdpr\n\n\n## Quantity and Timeline\nQuantity: 4 units\nDelivery Timeline: 3-months\n', 'extractedRequirements': ExtractedRequirement(title='LegalAI - AI Accelerator Procurement', description='Seeking high-performance GPUs for machine learning workloads', categories=['Laptops'], laptops=None, monitors=None, criteria=AwardCriteria(price={'weight': 50}, quality={'weight': 30}, delivery={'weight': 20})), 'userId': 1}
+1:14:18 PM [python] [Python Error] ERROR:python_backend.api.routes:Error creating RFQ: (psycopg2.OperationalError) SSL connection has been closed unexpectedly
+
+[SQL: INSERT INTO rfqs (title, description, original_content, extracted_requirements, user_id, created_at) VALUES (%(title)s, %(description)s, %(original_content)s, %(extracted_requirements)s::JSON, %(user_id)s, %(created_at)s) RETURNING rfqs.id]
+[parameters: {'title': 'LegalAI - AI Accelerator Procurement', 'description': 'Seeking high-performance GPUs for machine learning workloads', 'original_content': '\n# AI Hardware RFQ Questionnaire Results\n\n## Company Information\nCompany Name: LegalAI\nLocation: Germany\nIndustry: Technology\n\n\n## Project I ... (618 characters truncated) ... ptable\n\n## Compliance and Regulatory\nRegulatory Requirements: gdpr\n\n\n## Quantity and Timeline\nQuantity: 4 units\nDelivery Timeline: 3-months\n', 'extracted_requirements': '{"title": "LegalAI - AI Accelerator Procurement", "description": "Seeking high-performance GPUs for machine learning workloads", "categories": ["Laptops"], "laptops": null, "monitors": null, "criteria": {"price": {"weight": 50}, "quality": {"weight": 30}, "delivery": {"weight": 20}}}', 'user_id': 1, 'created_at': datetime.datetime(2025, 3, 18, 13, 14, 18, 144678)}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 942, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.OperationalError: SSL connection has been closed unexpectedly
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/python_backend/api/routes.py", line 213, in create_rfq
+    rfq = await storage.create_rfq(rfq_data)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/python_backend/models/db_storage.py", line 74, in create_rfq
+    db.commit()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2032, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1313, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1288, in _prepare_impl
+    self.session.flush()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4353, in flush
+    self._flush(objects)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4488, in _flush
+    with util.safe_reraise():
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4449, in _flush
+    flush_context.execute()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1416, in execute
+    return meth(
+           ^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 523, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1638, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1843, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1983, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2352, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 942, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) SSL connection has been closed unexpectedly
+
+[SQL: INSERT INTO rfqs (title, description, original_content, extracted_requirements, user_id, created_at) VALUES (%(title)s, %(description)s, %(original_content)s, %(extracted_requirements)s::JSON, %(user_id)s, %(created_at)s) RETURNING rfqs.id]
+[parameters: {'title': 'LegalAI - AI Accelerator Procurement', 'description': 'Seeking high-performance GPUs for machine learning workloads', 'original_content': '\n# AI Hardware RFQ Questionnaire Results\n\n## Company Information\nCompany Name: LegalAI\nLocation: Germany\nIndustry: Technology\n\n\n## Project I ... (618 characters truncated) ... ptable\n\n## Compliance and Regulatory\nRegulatory Requirements: gdpr\n\n\n## Quantity and Timeline\nQuantity: 4 units\nDelivery Timeline: 3-months\n', 'extracted_requirements': '{"title": "LegalAI - AI Accelerator Procurement", "description": "Seeking high-performance GPUs for machine learning workloads", "categories": ["Laptops"], "laptops": null, "monitors": null, "criteria": {"price": {"weight": 50}, "quality": {"weight": 30}, "delivery": {"weight": 20}}}', 'user_id': 1, 'created_at': datetime.datetime(2025, 3, 18, 13, 14, 18, 144678)}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+1:14:18 PM [python] [Python] INFO:     127.0.0.1:38696 - "POST /api/rfqs HTTP/1.1" 500 Internal Server Error
+1:14:18 PM [express] Python backend error: Internal Server Error
+1:14:18 PM [express] Error forwarding to Python backend: Error: Python backend returned 500: Internal Server Error
+Error creating RFQ: Error: Python backend returned 500: Internal Server Error
+    at <anonymous> (/home/runner/workspace/server/routes.ts:232:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+1:14:18 PM [express] POST /api/rfqs 500 in 668ms :: {"error":"Failed to create RFQ"}
+1:14:18 PM [python] [Python Error] ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 942, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.OperationalError: SSL connection has been closed unexpectedly
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/uvicorn/protocols/http/h11_impl.py", line 403, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/routing.py", line 714, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/routing.py", line 734, in app
+    await route.handle(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/python_backend/api/routes.py", line 213, in create_rfq
+    rfq = await storage.create_rfq(rfq_data)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/python_backend/models/db_storage.py", line 74, in create_rfq
+    db.commit()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2032, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1313, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1288, in _prepare_impl
+    self.session.flush()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4353, in flush
+    self._flush(objects)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4488, in _flush
+    with util.safe_reraise():
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4449, in _flush
+    flush_context.execute()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1416, in execute
+    return meth(
+           ^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 523, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1638, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1843, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1983, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2352, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 942, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) SSL connection has been closed unexpectedly
+
+[SQL: INSERT INTO rfqs (title, description, original_content, extracted_requirements, user_id, created_at) VALUES (%(title)s, %(description)s, %(original_content)s, %(extracted_requirements)s::JSON, %(user_id)s, %(created_at)s) RETURNING rfqs.id]
+[parameters: {'title': 'LegalAI - AI Accelerator Procurement', 'description': 'Seeking high-performance GPUs for machine learning workloads', 'original_content': '\n# AI Hardware RFQ Questionnaire Results\n\n## Company Information\nCompany Name: LegalAI\nLocation: Germany\nIndustry: Technology\n\n\n## Project I ... (618 characters truncated) ... ptable\n\n## Compliance and Regulatory\nRegulatory Requirements: gdpr\n\n\n## Quantity and Timeline\nQuantity: 4 units\nDelivery Timeline: 3-months\n', 'extracted_requirements': '{"title": "LegalAI - AI Accelerator Procurement", "description": "Seeking high-performance GPUs for machine learning workloads", "categories": ["Laptops"], "laptops": null, "monitors": null, "criteria": {"price": {"weight": 50}, "quality": {"weight": 30}, "delivery": {"weight": 20}}}', 'user_id': 1, 'created_at': datetime.datetime(2025, 3, 18, 13, 14, 18, 144678)}]

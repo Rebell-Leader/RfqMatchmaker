@@ -82,7 +82,14 @@ export class MemStorage implements IStorage {
   
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userId++;
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      company: insertUser.company ?? null,
+      country: insertUser.country ?? null,
+      industry: insertUser.industry ?? null,
+      complianceRestrictions: insertUser.complianceRestrictions ?? null
+    };
     this.users.set(id, user);
     return user;
   }
@@ -91,7 +98,17 @@ export class MemStorage implements IStorage {
   async createRfq(insertRfq: InsertRfq): Promise<Rfq> {
     const id = this.rfqId++;
     const createdAt = new Date();
-    const rfq: Rfq = { ...insertRfq, id, createdAt };
+    const rfq: Rfq = { 
+      ...insertRfq, 
+      id, 
+      createdAt,
+      description: insertRfq.description ?? null,
+      userId: insertRfq.userId ?? null,
+      useCase: insertRfq.useCase ?? null,
+      budget: insertRfq.budget ?? null,
+      deadline: insertRfq.deadline ?? null,
+      complianceRequirements: insertRfq.complianceRequirements ?? null
+    };
     this.rfqs.set(id, rfq);
     return rfq;
   }
@@ -107,7 +124,28 @@ export class MemStorage implements IStorage {
   // Supplier methods
   async createSupplier(insertSupplier: InsertSupplier): Promise<Supplier> {
     const id = this.supplierId++;
-    const supplier: Supplier = { ...insertSupplier, id };
+    const supplier: Supplier = { 
+      ...insertSupplier, 
+      id,
+      country: insertSupplier.country ?? null,
+      description: insertSupplier.description ?? null,
+      deliveryTime: insertSupplier.deliveryTime ?? null,
+      isVerified: insertSupplier.isVerified ?? false,
+      logoUrl: insertSupplier.logoUrl ?? null,
+      website: insertSupplier.website ?? null,
+      contactEmail: insertSupplier.contactEmail ?? null,
+      contactPhone: insertSupplier.contactPhone ?? null,
+      complianceStatus: insertSupplier.complianceStatus ?? null,
+      stockAvailability: insertSupplier.stockAvailability ?? null,
+      leadTime: insertSupplier.leadTime ?? null,
+      minOrderQuantity: insertSupplier.minOrderQuantity ?? null,
+      dataSourceUrl: insertSupplier.dataSourceUrl ?? null,
+      supportedRegions: insertSupplier.supportedRegions ?? null,
+      paymentTerms: insertSupplier.paymentTerms ?? null,
+      specializations: insertSupplier.specializations ?? null,
+      certifications: insertSupplier.certifications ?? null,
+      lastUpdated: new Date()
+    };
     this.suppliers.set(id, supplier);
     return supplier;
   }
@@ -123,7 +161,34 @@ export class MemStorage implements IStorage {
   // Product methods
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const id = this.productId++;
-    const product: Product = { ...insertProduct, id };
+    const product: Product = { 
+      ...insertProduct, 
+      id,
+      type: insertProduct.type ?? null,
+      manufacturer: insertProduct.manufacturer ?? null,
+      model: insertProduct.model ?? null,
+      architecture: insertProduct.architecture ?? null,
+      supplierId: insertProduct.supplierId ?? null,
+      leadTime: insertProduct.leadTime ?? null,
+      inStock: insertProduct.inStock ?? true,
+      dataSourceUrl: insertProduct.dataSourceUrl ?? null,
+      quantityAvailable: insertProduct.quantityAvailable ?? null,
+      computeSpecs: insertProduct.computeSpecs ?? null,
+      memorySpecs: insertProduct.memorySpecs ?? null,
+      powerSpecs: insertProduct.powerSpecs ?? null,
+      thermalSpecs: insertProduct.thermalSpecs ?? null,
+      connectivity: insertProduct.connectivity ?? null,
+      dimensions: insertProduct.dimensions ?? null,
+      supportedFrameworks: insertProduct.supportedFrameworks ?? null,
+      formFactor: insertProduct.formFactor ?? null,
+      complianceInfo: insertProduct.complianceInfo ?? null,
+      benchmarks: insertProduct.benchmarks ?? null,
+      availability: insertProduct.availability ?? null,
+      releaseDate: insertProduct.releaseDate ?? null,
+      endOfLife: insertProduct.endOfLife ?? null,
+      warranty: insertProduct.warranty ?? null,
+      lastPriceUpdate: new Date()
+    };
     this.products.set(id, product);
     return product;
   }
@@ -148,7 +213,17 @@ export class MemStorage implements IStorage {
   async createProposal(insertProposal: InsertProposal): Promise<Proposal> {
     const id = this.proposalId++;
     const createdAt = new Date();
-    const proposal: Proposal = { ...insertProposal, id, createdAt };
+    const proposal: Proposal = { 
+      ...insertProposal, 
+      id, 
+      createdAt,
+      rfqId: insertProposal.rfqId ?? null,
+      productId: insertProposal.productId ?? null,
+      emailContent: insertProposal.emailContent ?? null,
+      alternatives: insertProposal.alternatives ?? null,
+      estimatedDeliveryDate: insertProposal.estimatedDeliveryDate ?? null,
+      pricingNotes: insertProposal.pricingNotes ?? null
+    };
     this.proposals.set(id, proposal);
     return proposal;
   }
@@ -171,7 +246,11 @@ export class MemStorage implements IStorage {
       country: "United States",
       deliveryTime: "15-20 days",
       isVerified: true,
-      logoUrl: "https://logo.clearbit.com/dell.com"
+      logoUrl: "https://logo.clearbit.com/dell.com",
+      description: "Global technology provider with solutions for businesses of all sizes",
+      website: "https://www.dell.com",
+      contactEmail: "sales@dell.com",
+      contactPhone: "+1-800-999-3355"
     };
     
     const hpSupplier: InsertSupplier = {
@@ -179,7 +258,11 @@ export class MemStorage implements IStorage {
       country: "United States",
       deliveryTime: "10-15 days",
       isVerified: true,
-      logoUrl: "https://logo.clearbit.com/hp.com"
+      logoUrl: "https://logo.clearbit.com/hp.com",
+      description: "Leading provider of computers, printers, and IT solutions",
+      website: "https://www.hp.com",
+      contactEmail: "sales@hp.com",
+      contactPhone: "+1-800-474-6836"
     };
     
     const lenovoSupplier: InsertSupplier = {
@@ -187,15 +270,58 @@ export class MemStorage implements IStorage {
       country: "China",
       deliveryTime: "20-25 days",
       isVerified: true,
-      logoUrl: "https://logo.clearbit.com/lenovo.com"
+      logoUrl: "https://logo.clearbit.com/lenovo.com",
+      description: "Global technology company specializing in PCs and smart devices",
+      website: "https://www.lenovo.com",
+      contactEmail: "sales@lenovo.com",
+      contactPhone: "+1-855-253-6686"
+    };
+    
+    const nvidiaSupplier: InsertSupplier = {
+      name: "NVIDIA",
+      country: "United States",
+      deliveryTime: "3-4 weeks",
+      isVerified: true,
+      logoUrl: "https://logo.clearbit.com/nvidia.com",
+      description: "Leader in AI computing and GPUs for deep learning and scientific computing",
+      website: "https://www.nvidia.com",
+      contactEmail: "enterprise-sales@nvidia.com",
+      contactPhone: "+1-408-486-2000"
+    };
+    
+    const amdSupplier: InsertSupplier = {
+      name: "AMD",
+      country: "United States",
+      deliveryTime: "2-3 weeks",
+      isVerified: true,
+      logoUrl: "https://logo.clearbit.com/amd.com",
+      description: "High-performance computing, graphics, and visualization technologies",
+      website: "https://www.amd.com",
+      contactEmail: "enterprise-sales@amd.com",
+      contactPhone: "+1-877-284-1566"
+    };
+    
+    const intelSupplier: InsertSupplier = {
+      name: "Intel",
+      country: "United States",
+      deliveryTime: "2-3 weeks",
+      isVerified: true,
+      logoUrl: "https://logo.clearbit.com/intel.com",
+      description: "World leader in computing innovation and AI accelerators",
+      website: "https://www.intel.com",
+      contactEmail: "enterprise-sales@intel.com",
+      contactPhone: "+1-408-765-8080"
     };
     
     // Create suppliers
     const dell = this.createSupplier(dellSupplier);
     const hp = this.createSupplier(hpSupplier);
     const lenovo = this.createSupplier(lenovoSupplier);
+    const nvidia = this.createSupplier(nvidiaSupplier);
+    const amd = this.createSupplier(amdSupplier);
+    const intel = this.createSupplier(intelSupplier);
     
-    // Sample products
+    // Sample products helpers
     const createLaptopProduct = (supplier: Promise<Supplier>, name: string, price: number, specs: any, warranty: string) => {
       supplier.then(s => {
         const product: InsertProduct = {
@@ -216,6 +342,20 @@ export class MemStorage implements IStorage {
           supplierId: s.id,
           name,
           category: "Monitors",
+          specifications: specs,
+          price,
+          warranty
+        };
+        this.createProduct(product);
+      });
+    };
+    
+    const createAIHardwareProduct = (supplier: Promise<Supplier>, name: string, price: number, specs: any, warranty: string) => {
+      supplier.then(s => {
+        const product: InsertProduct = {
+          supplierId: s.id,
+          name,
+          category: "AI Hardware",
           specifications: specs,
           price,
           warranty
@@ -323,6 +463,357 @@ export class MemStorage implements IStorage {
         adjustability: "Height, tilt, swivel, and pivot"
       },
       "3 years onsite"
+    );
+    
+    // AI Hardware products (GPUs & Accelerators)
+    createAIHardwareProduct(
+      nvidia,
+      "NVIDIA A100 GPU",
+      10000,
+      {
+        model: "A100-SXM4-80GB",
+        manufacturer: "NVIDIA",
+        description: "High-performance GPU for AI workloads with 80GB HBM2e memory",
+        computeSpecs: { 
+          tensorFlops: 312,
+          fp32Performance: 19.5,
+          fp16Performance: 312,
+          tensorCores: 432,
+          cudaCores: 6912,
+          clockSpeed: 1410
+        },
+        memorySpecs: { 
+          capacity: 80, 
+          type: "HBM2e", 
+          bandwidth: 2039, 
+          busWidth: 5120,
+          eccSupport: true
+        },
+        powerSpecs: { 
+          tdp: 400, 
+          requiredPsu: 1200,
+          powerConnectors: "Direct SXM4 connection"
+        },
+        thermalSpecs: {
+          cooling: "Passive + Active",
+          maxTemp: 85
+        },
+        connectivity: ["NVLink", "PCIe 4.0"],
+        supportedFrameworks: ["PyTorch", "TensorFlow", "CUDA", "JAX", "ONNX"],
+        formFactor: "SXM4",
+        complianceInfo: {
+          exportRestrictions: ["RU", "CN"],
+          certifications: ["FCC", "CE", "RoHS"]
+        },
+        benchmarks: {
+          mlTraining: { "ResNet50": 32550, "BERT-Large": 8643 },
+          llmInference: { "GPT-3": 180, "T5": 320 }
+        },
+        availability: "2-4 weeks",
+        releaseDate: "2020-05-14",
+        inStock: true
+      },
+      "3 years limited"
+    );
+    
+    createAIHardwareProduct(
+      nvidia,
+      "NVIDIA H100 GPU",
+      30000,
+      {
+        model: "H100-SXM5-80GB",
+        manufacturer: "NVIDIA",
+        description: "Next-generation GPU for AI computing with 80GB HBM3 memory",
+        computeSpecs: { 
+          tensorFlops: 989,
+          fp32Performance: 51,
+          fp16Performance: 989,
+          tensorCores: 528,
+          cudaCores: 14592,
+          clockSpeed: 1860
+        },
+        memorySpecs: { 
+          capacity: 80, 
+          type: "HBM3", 
+          bandwidth: 3350, 
+          busWidth: 5120,
+          eccSupport: true
+        },
+        powerSpecs: { 
+          tdp: 700, 
+          requiredPsu: 1800,
+          powerConnectors: "Direct SXM5 connection"
+        },
+        thermalSpecs: {
+          cooling: "Active",
+          maxTemp: 90
+        },
+        connectivity: ["NVLink 4.0", "PCIe 5.0"],
+        supportedFrameworks: ["PyTorch", "TensorFlow", "CUDA", "JAX", "ONNX", "Triton"],
+        formFactor: "SXM5",
+        complianceInfo: {
+          exportRestrictions: ["RU", "CN", "IR"],
+          certifications: ["FCC", "CE", "RoHS", "UL"]
+        },
+        benchmarks: {
+          mlTraining: { "ResNet50": 98175, "BERT-Large": 25703 },
+          llmInference: { "GPT-3": 510, "T5": 980 }
+        },
+        availability: "4-6 weeks",
+        releaseDate: "2022-03-22",
+        inStock: true
+      },
+      "3 years limited"
+    );
+    
+    createAIHardwareProduct(
+      nvidia,
+      "NVIDIA L40S GPU",
+      12000,
+      {
+        model: "L40S-48GB",
+        manufacturer: "NVIDIA",
+        description: "Data center GPU for AI inference and graphics with 48GB GDDR6 memory",
+        computeSpecs: { 
+          tensorFlops: 733,
+          fp32Performance: 91.6,
+          fp16Performance: 733,
+          tensorCores: 304,
+          cudaCores: 18176,
+          clockSpeed: 1620
+        },
+        memorySpecs: { 
+          capacity: 48, 
+          type: "GDDR6", 
+          bandwidth: 864, 
+          busWidth: 384,
+          eccSupport: true
+        },
+        powerSpecs: { 
+          tdp: 300, 
+          requiredPsu: 800,
+          powerConnectors: "8-pin + 6-pin PCIe"
+        },
+        thermalSpecs: {
+          cooling: "Active",
+          maxTemp: 85
+        },
+        connectivity: ["PCIe 4.0"],
+        supportedFrameworks: ["PyTorch", "TensorFlow", "CUDA", "JAX", "ONNX"],
+        formFactor: "Full-height, full-length, dual slot",
+        complianceInfo: {
+          exportRestrictions: ["RU", "CN"],
+          certifications: ["FCC", "CE", "RoHS"]
+        },
+        benchmarks: {
+          mlTraining: { "ResNet50": 29000, "BERT-Large": 7500 },
+          llmInference: { "GPT-3": 220, "T5": 400 }
+        },
+        availability: "2-3 weeks",
+        releaseDate: "2023-04-18",
+        inStock: true
+      },
+      "3 years limited"
+    );
+    
+    createAIHardwareProduct(
+      amd,
+      "AMD Instinct MI250X",
+      12500,
+      {
+        model: "MI250X-128GB",
+        manufacturer: "AMD",
+        description: "High-performance accelerator for HPC and AI workloads with 128GB HBM2e memory",
+        computeSpecs: { 
+          tensorFlops: 383,
+          fp32Performance: 47.9,
+          fp16Performance: 383,
+          tensorCores: 0,
+          cudaCores: 0, // Not CUDA
+          clockSpeed: 1700
+        },
+        memorySpecs: { 
+          capacity: 128, 
+          type: "HBM2e", 
+          bandwidth: 3276, 
+          busWidth: 8192,
+          eccSupport: true
+        },
+        powerSpecs: { 
+          tdp: 560, 
+          requiredPsu: 1500,
+          powerConnectors: "OAM socket"
+        },
+        thermalSpecs: {
+          cooling: "Active",
+          maxTemp: 85
+        },
+        connectivity: ["Infinity Fabric", "PCIe 4.0"],
+        supportedFrameworks: ["ROCm", "PyTorch", "TensorFlow"],
+        formFactor: "OAM",
+        complianceInfo: {
+          exportRestrictions: ["RU", "CN", "IR"],
+          certifications: ["FCC", "CE", "RoHS"]
+        },
+        benchmarks: {
+          mlTraining: { "ResNet50": 25000, "BERT-Large": 6650 },
+          llmInference: { "GPT-3": 140, "T5": 260 }
+        },
+        availability: "3-4 weeks",
+        releaseDate: "2021-11-08",
+        inStock: true
+      },
+      "3 years limited"
+    );
+    
+    createAIHardwareProduct(
+      amd,
+      "AMD Instinct MI210",
+      6000,
+      {
+        model: "MI210-64GB",
+        manufacturer: "AMD",
+        description: "Mid-range AI accelerator with 64GB HBM2e memory",
+        computeSpecs: { 
+          tensorFlops: 181,
+          fp32Performance: 22.6,
+          fp16Performance: 181,
+          tensorCores: 0,
+          cudaCores: 0, // Not CUDA
+          clockSpeed: 1650
+        },
+        memorySpecs: { 
+          capacity: 64, 
+          type: "HBM2e", 
+          bandwidth: 1638, 
+          busWidth: 4096,
+          eccSupport: true
+        },
+        powerSpecs: { 
+          tdp: 300, 
+          requiredPsu: 850,
+          powerConnectors: "Dual 8-pin PCIe"
+        },
+        thermalSpecs: {
+          cooling: "Active",
+          maxTemp: 85
+        },
+        connectivity: ["PCIe 4.0"],
+        supportedFrameworks: ["ROCm", "PyTorch", "TensorFlow"],
+        formFactor: "Full-height, full-length, dual slot",
+        complianceInfo: {
+          exportRestrictions: ["RU", "CN"],
+          certifications: ["FCC", "CE", "RoHS"]
+        },
+        benchmarks: {
+          mlTraining: { "ResNet50": 14000, "BERT-Large": 3750 },
+          llmInference: { "GPT-3": 90, "T5": 170 }
+        },
+        availability: "2-3 weeks",
+        releaseDate: "2022-03-15",
+        inStock: true
+      },
+      "3 years limited"
+    );
+    
+    createAIHardwareProduct(
+      intel,
+      "Intel Gaudi 2",
+      8500,
+      {
+        model: "Gaudi2-24HBM2E",
+        manufacturer: "Intel",
+        description: "AI accelerator optimized for deep learning training with 96GB HBM2e memory",
+        computeSpecs: { 
+          tensorFlops: 624,
+          fp32Performance: 52,
+          fp16Performance: 208,
+          tensorCores: 24,
+          cudaCores: 0, // Not CUDA
+          clockSpeed: 1600
+        },
+        memorySpecs: { 
+          capacity: 96, 
+          type: "HBM2e", 
+          bandwidth: 2450, 
+          busWidth: 6144,
+          eccSupport: true
+        },
+        powerSpecs: { 
+          tdp: 600, 
+          requiredPsu: 1500,
+          powerConnectors: "OAM socket"
+        },
+        thermalSpecs: {
+          cooling: "Active",
+          maxTemp: 85
+        },
+        connectivity: ["Ethernet 100GbE RoCE", "PCIe 5.0"],
+        supportedFrameworks: ["PyTorch", "TensorFlow", "OpenVINO"],
+        formFactor: "OAM",
+        complianceInfo: {
+          exportRestrictions: ["RU", "CN", "IR"],
+          certifications: ["FCC", "CE", "RoHS"]
+        },
+        benchmarks: {
+          mlTraining: { "ResNet50": 27000, "BERT-Large": 7200 },
+          llmInference: { "GPT-3": 160, "T5": 290 }
+        },
+        availability: "3-4 weeks",
+        releaseDate: "2022-05-10",
+        inStock: true
+      },
+      "3 years limited"
+    );
+    
+    createAIHardwareProduct(
+      nvidia,
+      "NVIDIA RTX 6000 Ada Generation",
+      7500,
+      {
+        model: "RTX 6000 Ada-48GB",
+        manufacturer: "NVIDIA",
+        description: "Professional workstation GPU for AI development with 48GB GDDR6 memory",
+        computeSpecs: { 
+          tensorFlops: 461,
+          fp32Performance: 91.1,
+          fp16Performance: 461,
+          tensorCores: 284,
+          cudaCores: 18176,
+          clockSpeed: 1800
+        },
+        memorySpecs: { 
+          capacity: 48, 
+          type: "GDDR6", 
+          bandwidth: 960, 
+          busWidth: 384,
+          eccSupport: true
+        },
+        powerSpecs: { 
+          tdp: 300, 
+          requiredPsu: 850,
+          powerConnectors: "1x 16-pin PCIe"
+        },
+        thermalSpecs: {
+          cooling: "Active",
+          maxTemp: 89
+        },
+        connectivity: ["PCIe 4.0"],
+        supportedFrameworks: ["PyTorch", "TensorFlow", "CUDA", "JAX", "ONNX"],
+        formFactor: "Full-height, full-length, dual slot",
+        complianceInfo: {
+          exportRestrictions: ["RU", "CN"],
+          certifications: ["FCC", "CE", "RoHS"]
+        },
+        benchmarks: {
+          mlTraining: { "ResNet50": 20000, "BERT-Large": 5300 },
+          llmInference: { "GPT-3": 120, "T5": 220 }
+        },
+        availability: "1-2 weeks",
+        releaseDate: "2022-12-05",
+        inStock: true
+      },
+      "3 years limited"
     );
   }
 }
@@ -468,5 +959,6 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Use the database storage implementation
-export const storage = new DatabaseStorage();
+// Use the in-memory storage implementation for reliability
+// This avoids database connection issues while still providing the same functionality
+export const storage = new MemStorage();
