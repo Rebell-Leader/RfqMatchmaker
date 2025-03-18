@@ -614,13 +614,28 @@ async def get_quantity_for_category(requirements: Any, category: str) -> int:
     Returns:
         Quantity as integer
     """
-    if isinstance(requirements, dict):
-        # For AI hardware, get from aiHardware or gpuRequirements
-        if category.lower() in ["gpu", "accelerator", "ai accelerator"]:
-            if "aiHardware" in requirements and "quantity" in requirements["aiHardware"]:
-                return int(requirements["aiHardware"]["quantity"])
-            elif "gpuRequirements" in requirements and "quantity" in requirements["gpuRequirements"]:
-                return int(requirements["gpuRequirements"]["quantity"])
+    try:
+        # Handle different ways to access the data based on type
+        if isinstance(requirements, dict):
+            # Dictionary access
+            if category.lower() in ["gpu", "accelerator", "ai accelerator"]:
+                if "aiHardware" in requirements and "quantity" in requirements["aiHardware"]:
+                    return int(requirements["aiHardware"]["quantity"])
+                elif "gpuRequirements" in requirements and "quantity" in requirements["gpuRequirements"]:
+                    return int(requirements["gpuRequirements"]["quantity"])
+                elif "GPUs" in requirements and "quantity" in requirements["GPUs"]:
+                    return int(requirements["GPUs"]["quantity"])
+        else:
+            # Object attribute access
+            if category.lower() in ["gpu", "accelerator", "ai accelerator"]:
+                if hasattr(requirements, "aiHardware") and requirements.aiHardware and hasattr(requirements.aiHardware, "quantity"):
+                    return int(requirements.aiHardware.quantity)
+                elif hasattr(requirements, "gpuRequirements") and requirements.gpuRequirements and hasattr(requirements.gpuRequirements, "quantity"):
+                    return int(requirements.gpuRequirements.quantity)
+                elif hasattr(requirements, "GPUs") and requirements.GPUs and hasattr(requirements.GPUs, "quantity"):
+                    return int(requirements.GPUs.quantity)
+    except Exception as e:
+        logger.error(f"Error determining quantity: {str(e)}")
     
     # If we can't determine quantity, default to 1
     return 1
@@ -827,10 +842,18 @@ async def match_suppliers_for_rfq(rfq_id: int) -> List[SupplierMatch]:
                 buyer_country = user.country
         
         # Extract AI hardware specific categories from requirements
-        categories = requirements.get("categories", [])
-        if not categories:
+        # Handle both object access and dictionary access
+        if hasattr(requirements, "categories"):
+            categories = requirements.categories
+        elif isinstance(requirements, dict) and "categories" in requirements:
+            categories = requirements["categories"]
+        else:
             # Default to GPU if no categories specified
             categories = ["GPU", "AI Accelerator"]
+        
+        # Ensure categories is a list
+        if not isinstance(categories, list):
+            categories = [categories] if categories else []
         
         # Filter categories to AI hardware specific ones
         ai_hw_categories = [c for c in categories if c.lower() in [
