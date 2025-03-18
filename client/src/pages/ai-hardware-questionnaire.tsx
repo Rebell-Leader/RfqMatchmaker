@@ -220,40 +220,53 @@ export default function AIHardwareQuestionnaire() {
       const rfqTitle = `${values.companyName} - ${values.projectName}`;
       const rfqDescription = values.projectDescription || "AI hardware procurement";
       
-      // Convert questionnaire data to ExtractedRequirement format
-      const specifications = JSON.stringify({
-        company: {
-          name: values.companyName,
-          website: values.companyWebsite,
-          location: values.companyLocation,
-          industry: values.industry
-        },
-        project: {
-          name: values.projectName,
-          description: values.projectDescription,
-          budget: values.budget,
-          timeframe: values.timeframe
-        },
-        requirements: {
-          usagePurpose: values.usagePurpose,
-          usagePurposeOther: values.usagePurposeOther,
-          performanceLevel: values.performanceLevel,
-          customPerformanceDetails: values.customPerformanceDetails,
-          minimumMemory: values.minimumMemory,
-          memoryBandwidth: values.memoryBandwidth,
-          frameworks: values.frameworks,
-          frameworksOther: values.frameworksOther,
-          deploymentEnvironment: values.deploymentEnvironment,
-          maxPowerConsumption: values.maxPowerConsumption,
-          coolingRequirements: values.coolingRequirements,
-          regulatoryRequirements: values.regulatoryRequirements,
-          exportControls: values.exportControls,
-          quantity: values.quantity,
-          deliveryTimeline: values.deliveryTimeline
-        }
-      });
+      // Format specification data in a structured way to assist the AI model
+      const specifications = `
+# AI Hardware RFQ Questionnaire Results
+
+## Company Information
+Company Name: ${values.companyName}
+Location: ${values.companyLocation}
+Industry: ${values.industry}
+${values.companyWebsite ? `Website: ${values.companyWebsite}` : ''}
+
+## Project Information
+Project Name: ${values.projectName}
+${values.projectDescription ? `Description: ${values.projectDescription}` : ''}
+${values.budget ? `Budget: ${values.budget}` : ''}
+${values.timeframe ? `Timeframe: ${values.timeframe}` : ''}
+
+## Hardware Purpose
+Usage Purpose: ${values.usagePurpose.join(", ")}
+${values.usagePurposeOther ? `Other Purpose: ${values.usagePurposeOther}` : ''}
+
+## Performance Requirements
+Performance Level: ${values.performanceLevel}
+${values.customPerformanceDetails ? `Performance Details: ${values.customPerformanceDetails}` : ''}
+Minimum Memory: ${values.minimumMemory} GB
+${values.memoryBandwidth ? `Memory Bandwidth: ${values.memoryBandwidth} GB/s` : ''}
+
+## Framework Compatibility
+Frameworks: ${values.frameworks.join(", ")}
+${values.frameworksOther ? `Other Frameworks: ${values.frameworksOther}` : ''}
+
+## Deployment Environment
+Environment: ${values.deploymentEnvironment}
+${values.maxPowerConsumption ? `Maximum Power Consumption: ${values.maxPowerConsumption} Watts` : ''}
+${values.coolingRequirements ? `Cooling Requirements: ${values.coolingRequirements}` : ''}
+
+## Compliance and Regulatory
+${values.regulatoryRequirements.length > 0 ? `Regulatory Requirements: ${values.regulatoryRequirements.join(", ")}` : 'No specific regulatory requirements'}
+${values.exportControls ? `Export Controls: ${values.exportControls}` : ''}
+
+## Quantity and Timeline
+Quantity: ${values.quantity} units
+${values.deliveryTimeline ? `Delivery Timeline: ${values.deliveryTimeline}` : ''}
+`;
       
-      // Create manual RFQ
+      console.log("Formatted specifications for AI processing:", specifications);
+      
+      // Create manual RFQ with the formatted specifications
       const rfqId = await createManualRFQ(
         rfqTitle,
         rfqDescription,
@@ -268,9 +281,10 @@ export default function AIHardwareQuestionnaire() {
       
       // Navigate to review page
       toast({
-        title: "RFQ created successfully",
-        description: "Redirecting to review requirements...",
-        variant: "default"
+        title: "AI Hardware Requirements Submitted",
+        description: "Processing your technical specifications with AI...",
+        variant: "default",
+        duration: 5000 // Display for 5 seconds
       });
       
       navigate(`/review/${rfqId}`);
