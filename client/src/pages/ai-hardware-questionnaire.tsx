@@ -307,8 +307,7 @@ export default function AIHardwareQuestionnaire() {
 
   const isAnyTabValid = () => {
     // Get current errors for the form
-    const formState = form.getState();
-    const errors = formState.errors;
+    const errors = form.formState.errors;
     
     // Function to check if the company tab has errors
     const isCompanyTabValid = () => {

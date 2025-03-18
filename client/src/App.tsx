@@ -13,6 +13,7 @@ import MatchSuppliers from "@/pages/match-suppliers";
 import ScoreResults from "@/pages/score-results";
 import SendProposals from "@/pages/send-proposals";
 import AIHardwarePlatform from "@/pages/ai-hardware-platform";
+import AIHardwareQuestionnaire from "@/pages/ai-hardware-questionnaire";
 import { Button } from "@/components/ui/button";
 import { Beaker, Cpu } from "lucide-react";
 import { useEffect } from "react";
@@ -93,8 +94,10 @@ function RouterContent() {
     );
   }
   
-  // Special case for AI Hardware Platform - render without stepper
-  if (isAIHardwarePage) {
+  // Special case for AI Hardware Platform and Questionnaire - render without stepper
+  const isAIHardwareQuestionnairePage = location === "/ai-hardware-questionnaire";
+  
+  if (isAIHardwarePage || isAIHardwareQuestionnairePage) {
     return (
       <>
         <DemoModeToggle />
@@ -108,6 +111,7 @@ function RouterContent() {
         </Button>
         <Switch>
           <Route path="/ai-hardware" component={AIHardwarePlatform} />
+          <Route path="/ai-hardware-questionnaire" component={AIHardwareQuestionnaire} />
         </Switch>
       </>
     );

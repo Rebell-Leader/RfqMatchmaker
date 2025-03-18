@@ -32,9 +32,17 @@ export default function Landing() {
               <Button 
                 size="lg" 
                 className="text-lg px-8 py-6 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
+                onClick={() => navigate("/ai-hardware-questionnaire")}
+              >
+                AI Hardware Questionnaire
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="text-lg px-8 py-6 border-blue-300 text-blue-700 hover:bg-blue-50"
                 onClick={() => navigate("/upload")}
               >
-                Start Procurement
+                Upload RFQ
               </Button>
               <Button 
                 size="lg" 
@@ -237,13 +245,22 @@ export default function Landing() {
                   </div>
                 </div>
                 
-                <Button 
-                  variant="outline" 
-                  className="text-white border-cyan-500 hover:bg-cyan-500/20"
-                  onClick={() => navigate("/ai-hardware")}
-                >
-                  Explore AI Hardware Platform
-                </Button>
+                <div className="flex flex-wrap gap-4">
+                  <Button 
+                    variant="outline" 
+                    className="text-white border-cyan-500 hover:bg-cyan-500/20"
+                    onClick={() => navigate("/ai-hardware")}
+                  >
+                    Explore AI Hardware Platform
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="text-white border-green-500 hover:bg-green-500/20"
+                    onClick={() => navigate("/ai-hardware-questionnaire")}
+                  >
+                    Start Questionnaire
+                  </Button>
+                </div>
               </div>
               
               <div>
@@ -422,9 +439,17 @@ export default function Landing() {
             <Button 
               size="lg" 
               className="text-lg px-8 py-6 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
+              onClick={() => navigate("/ai-hardware-questionnaire")}
+            >
+              Start AI Questionnaire
+            </Button>
+            <Button 
+              size="lg" 
+              variant="default"
+              className="text-lg px-8 py-6 bg-blue-600"
               onClick={() => navigate("/upload")}
             >
-              Start AI Hardware Procurement
+              Upload RFQ Directly
             </Button>
             <Button 
               size="lg" 
