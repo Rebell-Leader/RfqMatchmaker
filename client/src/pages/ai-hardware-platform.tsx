@@ -145,7 +145,7 @@ export default function AIHardwarePlatform() {
       try {
         const response = await apiRequest("GET", `/api/compliance?country=${complianceCountry}&productId=${productToCheck}`);
         const data = await response.json();
-        return response as ComplianceCheckResult;
+        return data as ComplianceCheckResult;
       } catch (error) {
         console.error("Failed to check compliance:", error);
         return null;
