@@ -497,9 +497,37 @@ def calculate_match_score(
     compliance_score = 0.5
     compliance_notes = ""
     
-    # Extract AI hardware requirements
-    ai_hw_reqs = requirements.get("aiHardware", {})
-    gpu_reqs = requirements.get("gpuRequirements", {})
+    # Extract AI hardware requirements - handle both dict and object access
+    ai_hw_reqs = {}
+    gpu_reqs = {}
+    
+    if isinstance(requirements, dict):
+        # Dictionary access
+        ai_hw_reqs = requirements.get("aiHardware", {})
+        gpu_reqs = requirements.get("gpuRequirements", {})
+    else:
+        # Object attribute access
+        if hasattr(requirements, "aiHardware") and requirements.aiHardware:
+            ai_hw_reqs = requirements.aiHardware
+            # Convert Pydantic model to dict if needed
+            if hasattr(ai_hw_reqs, "dict") and callable(getattr(ai_hw_reqs, "dict")):
+                ai_hw_reqs = ai_hw_reqs.dict()
+            elif hasattr(ai_hw_reqs, "__dict__"):
+                ai_hw_reqs = {k: v for k, v in ai_hw_reqs.__dict__.items() if not k.startswith("_")}
+                
+        if hasattr(requirements, "gpuRequirements") and requirements.gpuRequirements:
+            gpu_reqs = requirements.gpuRequirements
+            # Convert Pydantic model to dict if needed
+            if hasattr(gpu_reqs, "dict") and callable(getattr(gpu_reqs, "dict")):
+                gpu_reqs = gpu_reqs.dict()
+            elif hasattr(gpu_reqs, "__dict__"):
+                gpu_reqs = {k: v for k, v in gpu_reqs.__dict__.items() if not k.startswith("_")}
+    
+    # Convert to dictionaries if they're not already
+    if not isinstance(ai_hw_reqs, dict):
+        ai_hw_reqs = {}
+    if not isinstance(gpu_reqs, dict):
+        gpu_reqs = {}
     
     # Combine requirements for easier access
     hw_requirements = {**ai_hw_reqs, **gpu_reqs}
@@ -566,12 +594,41 @@ def calculate_match_score(
     
     # Calculate overall match score
     # Get criteria weights from requirements
-    criteria = requirements.get("criteria", {})
-    price_weight = criteria.get("price", {}).get("weight", 25) / 100
-    performance_weight = criteria.get("performance", {}).get("weight", 40) / 100
-    compatibility_weight = criteria.get("compatibility", {}).get("weight", 15) / 100
-    availability_weight = criteria.get("availability", {}).get("weight", 10) / 100
-    compliance_weight = criteria.get("compliance", {}).get("weight", 10) / 100
+    criteria = {}
+    
+    # Handle different ways to access criteria based on the type
+    if isinstance(requirements, dict):
+        criteria = requirements.get("criteria", {})
+    else:
+        if hasattr(requirements, "criteria"):
+            criteria_obj = requirements.criteria
+            # Convert Pydantic model to dict if needed
+            if hasattr(criteria_obj, "dict") and callable(getattr(criteria_obj, "dict")):
+                criteria = criteria_obj.dict()
+            elif hasattr(criteria_obj, "__dict__"):
+                criteria = {k: v for k, v in criteria_obj.__dict__.items() if not k.startswith("_")}
+    
+    # Default weights if criteria is empty
+    if not criteria:
+        criteria = {
+            "price": {"weight": 25},
+            "performance": {"weight": 40},
+            "compatibility": {"weight": 15},
+            "availability": {"weight": 10},
+            "compliance": {"weight": 10}
+        }
+    
+    # Extract weights with safe fallbacks
+    price_weight = (criteria.get("price", {}).get("weight", 25) if isinstance(criteria.get("price", {}), dict) 
+                    else 25) / 100
+    performance_weight = (criteria.get("performance", {}).get("weight", 40) if isinstance(criteria.get("performance", {}), dict) 
+                          else 40) / 100
+    compatibility_weight = (criteria.get("compatibility", {}).get("weight", 15) if isinstance(criteria.get("compatibility", {}), dict) 
+                            else 15) / 100
+    availability_weight = (criteria.get("availability", {}).get("weight", 10) if isinstance(criteria.get("availability", {}), dict) 
+                           else 10) / 100
+    compliance_weight = (criteria.get("compliance", {}).get("weight", 10) if isinstance(criteria.get("compliance", {}), dict) 
+                         else 10) / 100
     
     # Ensure weights sum to 1
     total_weight = price_weight + performance_weight + compatibility_weight + availability_weight + compliance_weight

@@ -1,5 +1,16 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+try:
+    from pydantic import BaseModel, Field
+except ImportError:
+    # Fallback implementation if pydantic isn't installed
+    class BaseModel:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+    
+    def Field(default=None, **kwargs):
+        return default
+
 from typing import List, Dict, Optional, Any, Union
 
 # Equipment requirements schemas
