@@ -65,3 +65,12 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python -m python_backend.main"
+
+[[workflows.workflow]]
+name = "Streamlit Frontend"
+author = 797719
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd streamlit_frontend && streamlit run Home.py --server.address 0.0.0.0 --server.port 8501 --server.headless true --server.enableCORS=false --server.enableWebsocketCompression=false"
