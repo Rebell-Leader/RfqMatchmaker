@@ -1,4 +1,5 @@
-import { 
+
+<old_str>import { 
   users, type User, type InsertUser,
   rfqs, type Rfq, type InsertRfq,
   suppliers, type Supplier, type InsertSupplier,
@@ -968,4 +969,9 @@ export class DatabaseStorage implements IStorage {
 
 // Use the in-memory storage implementation for reliability
 // This avoids database connection issues while still providing the same functionality
-export const storage = new MemStorage();
+export const storage = new MemStorage();</old_str>
+<new_str>// All storage operations are handled by Python backend
+// This file exists for TypeScript compatibility but should not be used
+// All data operations go through the Python API at http://localhost:8000
+
+export const storage = null; // Placeholder - all operations handled by Python backend</new_str>
