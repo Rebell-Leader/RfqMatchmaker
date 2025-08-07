@@ -12,6 +12,8 @@ interface RfqContextType {
   setSelectedMatches: (matches: SupplierMatch[]) => void;
   emailTemplate: EmailTemplate | null;
   setEmailTemplate: (template: EmailTemplate | null) => void;
+  currentStep: number;
+  setCurrentStep: (step: number) => void;
 }
 
 const RfqContext = createContext<RfqContextType | undefined>(undefined);
@@ -34,6 +36,7 @@ export const RfqProvider: FC<RfqProviderProps> = ({ children }) => {
   const [supplierMatches, setSupplierMatches] = useState<SupplierMatch[]>([]);
   const [selectedMatches, setSelectedMatches] = useState<SupplierMatch[]>([]);
   const [emailTemplate, setEmailTemplate] = useState<EmailTemplate | null>(null);
+  const [currentStep, setCurrentStep] = useState<number>(1); // Start at step 1 (Upload RFQ)
   
   const value = {
     rfqId,
@@ -45,7 +48,9 @@ export const RfqProvider: FC<RfqProviderProps> = ({ children }) => {
     selectedMatches,
     setSelectedMatches,
     emailTemplate,
-    setEmailTemplate
+    setEmailTemplate,
+    currentStep,
+    setCurrentStep
   };
   
   return <RfqContext.Provider value={value}>{children}</RfqContext.Provider>;

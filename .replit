@@ -1,9 +1,10 @@
-modules = ["nodejs-20", "bash", "web", "python-3.11", "[", "'", "p", "y", "t", "h", "o", "n", "-", "3", ".", "1", "]"]
+modules = ["nodejs-20", "bash", "web", "python-3.11", "[", "'", "p", "y", "t", "h", "o", "n", "-", "3", ".", "1", "]", "postgresql-16"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["glibcLocales", "libxcrypt"]
 
 [deployment]
 deploymentTarget = "cloudrun"
@@ -13,8 +14,12 @@ run = ["sh", "-c", "npm run dev"]
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 8000
+externalPort = 8000
+
 [workflows]
-runButton = "Project"
+runButton = "Full Stack Application"
 
 [[workflows.workflow]]
 name = "Project"
@@ -39,3 +44,34 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Full Stack Application"
+author = 797719
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python -m python_backend.main"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow]]
+name = "Python Backend Only"
+author = 797719
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python -m python_backend.main"
+
+[[workflows.workflow]]
+name = "Streamlit Frontend"
+author = 797719
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd streamlit_frontend && streamlit run Home.py --server.address 0.0.0.0 --server.port 8501 --server.headless true --server.enableCORS=false --server.enableWebsocketCompression=false"

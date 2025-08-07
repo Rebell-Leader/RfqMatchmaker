@@ -16,6 +16,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { getRFQById, matchSuppliersForRFQ, formatCurrency, calculateTotalPrice } from "@/lib/supplier-service";
 import { useRfq } from "@/context/rfq-context";
+import { useDemoMode } from "@/context/demo-context";
 import { formatSpecifications, formatWarningText, sortSupplierMatches, filterSupplierMatches, getUniqueFilterOptions } from "@/utils/rfq-processor";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -24,6 +25,7 @@ export default function MatchSuppliers() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { setRfqId, setSupplierMatches, setSelectedMatches } = useRfq();
+  const { isDemoMode, demoRfq, demoSupplierMatches, simulateProcessing } = useDemoMode();
   
   const [loading, setLoading] = useState(true);
   const [matchLoading, setMatchLoading] = useState(false);
@@ -44,6 +46,31 @@ export default function MatchSuppliers() {
     async function fetchRfq() {
       try {
         setLoading(true);
+        
+        // If in demo mode, use demo data
+        if (isDemoMode && String(demoRfq.id) === id) {
+          // Simulate processing delay
+          setTimeout(() => {
+            setRfq(demoRfq);
+            setRequirements(demoRfq.extractedRequirements);
+            
+            // Update context
+            setRfqId(demoRfq.id);
+            
+            // Find initial tab based on categories
+            const categories = demoRfq.extractedRequirements.categories || [];
+            if (categories.includes("Laptops")) {
+              setSelectedTab("laptops");
+            } else if (categories.includes("Monitors")) {
+              setSelectedTab("monitors");
+            }
+            
+            setLoading(false);
+          }, 1000);
+          return;
+        }
+        
+        // Otherwise fetch real data
         const rfqData = await getRFQById(Number(id));
         setRfq(rfqData);
         setRequirements(rfqData.extractedRequirements);
@@ -67,19 +94,40 @@ export default function MatchSuppliers() {
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        if (!isDemoMode) {
+          setLoading(false);
+        }
       }
     }
     
     if (id) {
       fetchRfq();
     }
-  }, [id, setRfqId, toast]);
+  }, [id, setRfqId, toast, isDemoMode, demoRfq]);
   
   useEffect(() => {
     async function matchSuppliers() {
       try {
         setMatchLoading(true);
+        
+        // If in demo mode, use demo matches
+        if (isDemoMode && String(demoRfq.id) === id) {
+          // Simulate processing delay
+          simulateProcessing(() => {
+            setMatches(demoSupplierMatches);
+            
+            // Get filter options from matches
+            const options = getUniqueFilterOptions(demoSupplierMatches);
+            setFilterOptions(options);
+            
+            // Update context
+            setSupplierMatches(demoSupplierMatches);
+            setMatchLoading(false);
+          });
+          return;
+        }
+        
+        // Otherwise fetch real data
         const matchResults = await matchSuppliersForRFQ(Number(id));
         setMatches(matchResults);
         
@@ -97,14 +145,16 @@ export default function MatchSuppliers() {
           variant: "destructive",
         });
       } finally {
-        setMatchLoading(false);
+        if (!isDemoMode) {
+          setMatchLoading(false);
+        }
       }
     }
     
     if (rfq && !matches.length) {
       matchSuppliers();
     }
-  }, [id, rfq, matches.length, setSupplierMatches, toast]);
+  }, [id, rfq, matches.length, setSupplierMatches, toast, isDemoMode, demoRfq, demoSupplierMatches, simulateProcessing]);
   
   const handleGoBack = () => {
     navigate(`/review/${id}`);
@@ -126,8 +176,17 @@ export default function MatchSuppliers() {
   
   // Filter matches by category and sort/filter
   const getFilteredMatches = () => {
+    let categoryFilter = "";
+    if (selectedTab === "laptops") {
+      categoryFilter = "Laptops";
+    } else if (selectedTab === "monitors") {
+      categoryFilter = "Monitors";
+    } else if (selectedTab === "aihardware") {
+      categoryFilter = "AI Hardware";
+    }
+    
     const categoryMatches = matches.filter(match => 
-      match.product.category === (selectedTab === "laptops" ? "Laptops" : "Monitors")
+      match.product.category === categoryFilter
     );
     
     // Apply sort
@@ -209,7 +268,7 @@ export default function MatchSuppliers() {
             <p className="text-gray-600 mb-6">
               The requested RFQ could not be found or has not been properly processed.
             </p>
-            <Button onClick={() => navigate("/")}>Return to Upload</Button>
+            <Button onClick={() => navigate("/upload")}>Return to Upload</Button>
           </CardContent>
         </Card>
       </div>
@@ -255,6 +314,14 @@ export default function MatchSuppliers() {
                         className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none"
                       >
                         Monitors ({matches.filter(m => m.product.category === "Monitors").length} matches)
+                      </TabsTrigger>
+                    )}
+                    {requirements.categories?.includes("AI Hardware") && (
+                      <TabsTrigger 
+                        value="aihardware" 
+                        className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none"
+                      >
+                        AI Hardware ({matches.filter(m => m.product.category === "AI Hardware").length} matches)
                       </TabsTrigger>
                     )}
                   </TabsList>
@@ -515,6 +582,256 @@ export default function MatchSuppliers() {
                   <div className="text-center py-8">
                     <p className="text-gray-500">Monitor matching functionality works the same way as laptops.</p>
                   </div>
+                </TabsContent>
+                
+                <TabsContent value="aihardware">
+                  {/* Filters for AI Hardware */}
+                  <div className="flex flex-wrap items-center gap-4 mb-4">
+                    <div>
+                      <Label htmlFor="sort-by" className="block text-sm font-medium text-gray-700 mb-1">
+                        Sort by
+                      </Label>
+                      <Select value={sortBy} onValueChange={setSortBy}>
+                        <SelectTrigger className="w-[180px]" id="sort-by">
+                          <SelectValue placeholder="Sort by..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="price-asc">Price (lowest first)</SelectItem>
+                          <SelectItem value="price-desc">Price (highest first)</SelectItem>
+                          <SelectItem value="match-score">Match score</SelectItem>
+                          <SelectItem value="delivery-time">Delivery time</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-processor" className="block text-sm font-medium text-gray-700 mb-1">
+                        Processor
+                      </Label>
+                      <Select value={filterProcessor} onValueChange={setFilterProcessor}>
+                        <SelectTrigger className="w-[180px]" id="filter-processor">
+                          <SelectValue placeholder="All Processors" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Processors</SelectItem>
+                          {filterOptions.processors.map((processor: string) => (
+                            <SelectItem key={processor} value={processor.toLowerCase()}>
+                              {processor}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-memory" className="block text-sm font-medium text-gray-700 mb-1">
+                        Memory
+                      </Label>
+                      <Select value={filterMemory} onValueChange={setFilterMemory}>
+                        <SelectTrigger className="w-[180px]" id="filter-memory">
+                          <SelectValue placeholder="All Memory" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Memory</SelectItem>
+                          {filterOptions.memories.map((memory: string) => (
+                            <SelectItem key={memory} value={memory.toLowerCase()}>
+                              {memory}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  {/* Results */}
+                  {paginatedMatches.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No matching AI hardware suppliers found.</p>
+                    </div>
+                  ) : (
+                    paginatedMatches.map((match, index) => (
+                      <div key={`${match.supplier.id}-${match.product.id}`} className="border border-gray-200 rounded-lg mb-4 overflow-hidden">
+                        <div className="flex flex-col md:flex-row">
+                          {/* Supplier Info */}
+                          <div className="p-4 md:w-1/4 bg-gray-50 border-b md:border-b-0 md:border-r border-gray-200">
+                            <div className="flex items-center mb-3">
+                              <img 
+                                src={match.supplier.logoUrl} 
+                                alt={match.supplier.name} 
+                                className="w-8 h-8 mr-2 rounded" 
+                              />
+                              <h3 className="font-medium">{match.supplier.name}</h3>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600 mb-2">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4 mr-1"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                              </svg>
+                              {match.supplier.country}
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600 mb-2">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4 mr-1"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              Est. delivery: {match.supplier.deliveryTime}
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4 mr-1"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                                />
+                              </svg>
+                              {match.supplier.isVerified ? "Verified supplier" : "Standard supplier"}
+                            </div>
+                          </div>
+                          
+                          {/* Product Info */}
+                          <div className="p-4 md:w-2/4">
+                            <h4 className="font-medium mb-2">{match.product.name}</h4>
+                            <div className="space-y-1 text-sm mb-3">
+                              {formatSpecifications(match.product.specifications).map((spec, i) => (
+                                <p key={i}>
+                                  <span className="text-gray-500">{spec.key}:</span> {spec.value}
+                                  {spec.warning && (
+                                    <span className={formatWarningText(spec.warning).color}> {formatWarningText(spec.warning).text}</span>
+                                  )}
+                                </p>
+                              ))}
+                            </div>
+                            <div className="mt-3">
+                              <Button variant="link" size="sm" className="text-primary hover:text-primary-dark p-0 h-auto text-sm">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4 mr-1"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  />
+                                </svg>
+                                View full specifications
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {/* Scoring Info */}
+                          <div className="p-4 md:w-1/4 bg-gray-50 border-t md:border-t-0 md:border-l border-gray-200">
+                            <div className="mb-3">
+                              <p className="text-2xl font-medium">
+                                {formatCurrency(match.product.price)}
+                                <span className="text-sm text-gray-500">/unit</span>
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {formatCurrency(match.totalPrice)} total 
+                                ({requirements.aiHardware?.quantity || 0} units)
+                              </p>
+                            </div>
+                            
+                            <div className="mb-4">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-sm text-gray-600">Match score</span>
+                                <span className="text-sm font-medium">{Math.round(match.matchScore)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-primary h-2 rounded-full" 
+                                  style={{ width: `${Math.round(match.matchScore)}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <Button 
+                                onClick={() => toggleItemSelection(match)}
+                                variant={selectedItems.some(i => i.product.id === match.product.id) ? "secondary" : "default"}
+                                className="w-full mb-2"
+                              >
+                                {selectedItems.some(i => i.product.id === match.product.id) ? "Selected" : "Select"}
+                              </Button>
+                              <Button variant="outline" className="w-full">
+                                Compare
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex justify-center mt-6">
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              onClick={() => setPage(p => Math.max(1, p - 1))}
+                              className={page === 1 ? "pointer-events-none opacity-50" : ""}
+                            />
+                          </PaginationItem>
+                          
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                            <PaginationItem key={p}>
+                              <PaginationLink 
+                                onClick={() => setPage(p)}
+                                isActive={page === p}
+                              >
+                                {p}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ))}
+                          
+                          <PaginationItem>
+                            <PaginationNext 
+                              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                              className={page === totalPages ? "pointer-events-none opacity-50" : ""}
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>

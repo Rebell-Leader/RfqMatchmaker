@@ -1,30 +1,41 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+try:
+    from pydantic import BaseModel, Field
+except ImportError:
+    # Fallback implementation if pydantic isn't installed
+    class BaseModel:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+    
+    def Field(default=None, **kwargs):
+        return default
+
 from typing import List, Dict, Optional, Any, Union
 
 # Equipment requirements schemas
 class LaptopRequirements(BaseModel):
-    quantity: int
-    os: str
-    processor: str
-    memory: str
-    storage: str
-    display: str
-    battery: str
-    durability: str
-    connectivity: str
-    warranty: str
+    quantity: int = 1
+    os: Optional[str] = None
+    processor: Optional[str] = None
+    memory: Optional[str] = None
+    storage: Optional[str] = None
+    display: Optional[str] = None
+    battery: Optional[str] = None
+    durability: Optional[str] = None
+    connectivity: Optional[str] = None
+    warranty: Optional[str] = None
 
 class MonitorRequirements(BaseModel):
-    quantity: int
-    screenSize: str
-    resolution: str
-    panelTech: str
-    brightness: str
-    contrastRatio: str
-    connectivity: str
-    adjustability: str
-    warranty: str
+    quantity: int = 1
+    screenSize: Optional[str] = None
+    resolution: Optional[str] = None
+    panelTech: Optional[str] = None
+    brightness: Optional[str] = None
+    contrastRatio: Optional[str] = None
+    connectivity: Optional[str] = None
+    adjustability: Optional[str] = None
+    warranty: Optional[str] = None
 
 class AwardCriteria(BaseModel):
     price: Dict[str, int] = Field(default={"weight": 50})
@@ -83,12 +94,21 @@ class MatchDetails(BaseModel):
     quality: float
     delivery: float
 
+class ProductAlternatives(BaseModel):
+    similarPerformance: Optional[List[int]] = None
+    lowerCost: Optional[List[int]] = None
+    fasterDelivery: Optional[List[int]] = None
+    betterCompliance: Optional[List[int]] = None
+
 class SupplierMatch(BaseModel):
     supplier: Supplier
     product: Product
     matchScore: float
-    matchDetails: MatchDetails
+    matchDetails: Dict[str, float]  # Changed to Dict for more flexibility
     totalPrice: float
+    estimatedDelivery: Optional[str] = None
+    complianceNotes: Optional[str] = None
+    alternatives: Optional[Dict[str, List[int]]] = None
 
 class Proposal(BaseModel):
     id: int

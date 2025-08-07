@@ -11,6 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { uploadRFQFile, createManualRFQ } from "@/lib/ai-service";
 import { useRfq } from "@/context/rfq-context";
+import { useDemoMode } from "@/context/demo-context";
+import { Beaker } from "lucide-react";
 
 // Form schema for manual RFQ entry
 const manualRfqSchema = z.object({
@@ -24,7 +26,8 @@ type ManualRfqFormValues = z.infer<typeof manualRfqSchema>;
 export default function UploadRfq() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { setRfqId } = useRfq();
+  const { setRfqId, setCurrentStep } = useRfq();
+  const { isDemoMode, demoRfq, simulateProcessing } = useDemoMode();
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -69,6 +72,25 @@ export default function UploadRfq() {
     document.getElementById("rfq-upload")?.click();
   };
 
+  // Function to handle demo mode processing
+  const handleDemoProcessing = () => {
+    setIsUploading(true);
+    
+    simulateProcessing(() => {
+      setRfqId(demoRfq.id);
+      setCurrentStep(2); // Move to step 2 (Review Requirements)
+      
+      toast({
+        title: "Demo RFQ processed",
+        description: "Redirecting to review requirements...",
+        variant: "default"
+      });
+      
+      setIsUploading(false);
+      navigate(`/review/${demoRfq.id}`);
+    });
+  };
+
   // Function to handle file upload
   const handleFileUpload = async (file: File) => {
     try {
@@ -87,11 +109,18 @@ export default function UploadRfq() {
         return;
       }
       
+      // If in demo mode, use demo data instead of actual API call
+      if (isDemoMode) {
+        handleDemoProcessing();
+        return;
+      }
+      
       // Upload file
       const rfqId = await uploadRFQFile(file);
       
-      // Set RFQ ID in context
+      // Set RFQ ID and next step in context
       setRfqId(rfqId);
+      setCurrentStep(2); // Move to step 2 (Review Requirements)
       
       // Navigate to review page
       toast({
@@ -109,7 +138,9 @@ export default function UploadRfq() {
         variant: "destructive"
       });
     } finally {
-      setIsUploading(false);
+      if (!isDemoMode) {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -118,6 +149,15 @@ export default function UploadRfq() {
     try {
       setIsUploading(true);
       
+      // Log form values for debugging
+      console.log("Submitting manual RFQ form with values:", values);
+      
+      // If in demo mode, use demo data instead of actual API call
+      if (isDemoMode) {
+        handleDemoProcessing();
+        return;
+      }
+      
       // Create manual RFQ
       const rfqId = await createManualRFQ(
         values.title,
@@ -125,8 +165,11 @@ export default function UploadRfq() {
         values.specifications
       );
       
-      // Set RFQ ID in context
+      console.log("RFQ created successfully with ID:", rfqId);
+      
+      // Set RFQ ID and next step in context
       setRfqId(rfqId);
+      setCurrentStep(2); // Move to step 2 (Review Requirements)
       
       // Navigate to review page
       toast({
@@ -138,13 +181,32 @@ export default function UploadRfq() {
       navigate(`/review/${rfqId}`);
     } catch (error) {
       console.error("Error creating manual RFQ:", error);
+      
+      // More detailed error handling
+      let errorMessage = "Failed to create RFQ";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Add specific error details for common issues
+        if (error.message.includes("404")) {
+          errorMessage = "The server endpoint for creating RFQs could not be found. Please try again later.";
+        } else if (error.message.includes("500")) {
+          errorMessage = "The server encountered an error while processing your request. Please try again later.";
+        } else if (error.message.includes("Network")) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        }
+      }
+      
       toast({
         title: "Submission failed",
-        description: error instanceof Error ? error.message : "Failed to create RFQ",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
-      setIsUploading(false);
+      if (!isDemoMode) {
+        setIsUploading(false);
+      }
     }
   };
 

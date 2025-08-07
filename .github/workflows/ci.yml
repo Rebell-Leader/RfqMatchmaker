@@ -1,0 +1,302 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Frontend Tests (Node.js/TypeScript)
+  frontend-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run TypeScript checks
+      run: npm run check
+    
+    - name: Run Jest tests
+      run: npm test
+      env:
+        CI: true
+    
+    - name: Run tests with coverage
+      run: npm run test:coverage
+      env:
+        CI: true
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: false
+
+  # Backend Tests (Python)
+  backend-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.11, 3.12]
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install UV (fast Python package installer)
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    - name: Install Python dependencies
+      run: |
+        cd python_backend
+        uv sync
+    
+    - name: Run Python tests
+      run: |
+        cd python_backend
+        uv run pytest tests/ -v --cov=. --cov-report=xml
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        FEATHERLESS_API_KEY: ${{ secrets.FEATHERLESS_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    
+    - name: Upload Python coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./python_backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: false
+
+  # Integration Tests
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests]
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install UV
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd python_backend && uv sync
+    
+    - name: Start Python backend
+      run: |
+        cd python_backend
+        nohup uv run python -m python_backend.main &
+        sleep 10
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+    
+    - name: Build frontend
+      run: npm run build
+    
+    - name: Run integration tests
+      run: |
+        # Test that Python backend is responding
+        curl -f http://localhost:8000/health || exit 1
+        
+        # Test API endpoints
+        curl -f http://localhost:8000/api/ai-hardware/check-compliance || exit 1
+        curl -f http://localhost:8000/api/ai-hardware/frameworks-compatibility || exit 1
+        
+        # Test file upload (basic)
+        echo "Test RFQ content" > test_rfq.txt
+        curl -X POST -F "file=@test_rfq.txt" http://localhost:8000/api/rfqs/upload || exit 1
+        rm test_rfq.txt
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+
+  # Security Scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run npm audit
+      run: |
+        npm ci
+        npm audit --audit-level moderate
+      continue-on-error: true
+    
+    - name: Run Python security scan
+      run: |
+        pip install safety bandit
+        cd python_backend
+        # Check for known vulnerabilities
+        safety check --json || true
+        # Static analysis for security issues
+        bandit -r . -f json || true
+      continue-on-error: true
+
+  # Build and Deploy (only on main branch)
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests, integration-tests]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build frontend
+      run: npm run build
+    
+    - name: Build backend
+      run: npm run build
+    
+    - name: Create deployment package
+      run: |
+        mkdir -p deploy
+        cp -r dist/ deploy/
+        cp -r python_backend/ deploy/
+        cp package.json deploy/
+        cp pyproject.toml deploy/
+        
+        # Create deployment info
+        echo "Build: $(date)" > deploy/BUILD_INFO
+        echo "Commit: $(git rev-parse HEAD)" >> deploy/BUILD_INFO
+        echo "Branch: $(git rev-parse --abbrev-ref HEAD)" >> deploy/BUILD_INFO
+    
+    - name: Upload deployment artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-package
+        path: deploy/
+        retention-days: 30
+
+  # Performance Tests (optional, runs on schedule)
+  performance-tests:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[perf-test]')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run performance tests
+      run: |
+        # Install k6 for load testing
+        sudo gpg -k
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+        sudo apt-get update
+        sudo apt-get install k6
+        
+        # Create basic load test
+        cat > load-test.js << 'EOF'
+        import http from 'k6/http';
+        import { check } from 'k6';
+        
+        export let options = {
+          stages: [
+            { duration: '1m', target: 10 },
+            { duration: '2m', target: 20 },
+            { duration: '1m', target: 0 },
+          ],
+        };
+        
+        export default function() {
+          let response = http.get('http://localhost:8000/health');
+          check(response, {
+            'status is 200': (r) => r.status === 200,
+            'response time < 500ms': (r) => r.timings.duration < 500,
+          });
+        }
+        EOF
+        
+        # Start backend for testing
+        cd python_backend
+        nohup python -m python_backend.main &
+        sleep 10
+        cd ..
+        
+        # Run load test
+        k6 run load-test.js
+      continue-on-error: true
+
+# Scheduled runs for maintenance
+on:
+  schedule:
+    # Run performance tests weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
