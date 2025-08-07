@@ -1,12 +1,11 @@
 import type { Express, Request, Response } from "express";
-import { createServer, type Server } from "http";
 import { log } from "./vite";
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
 // Python backend URL
 const PYTHON_BACKEND_URL = "http://localhost:8000";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export function registerRoutes(app: Express): void {
   // Setup proxy middleware for all API routes to Python backend
   app.use('/api', createProxyMiddleware({
     target: PYTHON_BACKEND_URL,
@@ -37,12 +36,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   res.sendFile(path.join(__dirname, "../dist/index.html"));
   // });
 
-  // Since this file is for registering routes for an Express app,
-  // and the prompt focuses on API routing and backend logic,
-  // we will not include frontend serving logic here directly.
-  // Frontend serving should be handled by the main server setup
-  // or a dedicated static file serving middleware.
-
-  const httpServer = createServer(app);
-  return httpServer;
+  // Frontend serving is handled by Vite in the main server setup
 }
